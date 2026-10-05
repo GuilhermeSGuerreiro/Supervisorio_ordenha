@@ -36,6 +36,7 @@ Primeiro compromisso: um posto funcionando, medição conferida e o operador reg
 | `docs/05-plano-orcamento.md` | Cronograma por critério de avanço e orçamento por etapa |
 | `docs/06-decisoes.md` | Decisões de arquitetura e seus motivos |
 | `docs/08-mensuracao-manejo.md` | Como registrar uma mudança de manejo e medir o efeito: desenhos, confundidores, clima, detecção |
+| `docs/09-impacto-setor.md` | Como a medição por vaca ajuda o setor: eficiência, genética, clima, emissões, crédito, e sugestões para o produto |
 | `docs/07-viabilidade.md` | Estudo de viabilidade: soluções parecidas, norma ICAR, mercado regional, riscos e ajustes de rota |
 | `hardware/` | Mecânica do posto, caixa, ligação elétrica |
 | `firmware/posto-esp32/` | Firmware do posto (ESP32 + HX711), ESP-IDF 5.3 |
