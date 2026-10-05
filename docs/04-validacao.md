@@ -4,11 +4,17 @@ As planilhas de registro estão em `planilhas/`. Cada fase tem critério de apro
 
 ## Balança
 
-### Meta
+### Mínimo aceitável e meta
 
-Erro por ordenha de no máximo **200 g ou 2% da produção, o que for maior**.
+Dois níveis. Sem o mínimo, a etapa não avança. A meta é o que o produto promete.
+
+| Nível | Critério | Origem |
+|---|---|---|
+| Mínimo aceitável | Viés até 0,2 kg e desvio padrão até 0,5 kg para ordenhas de 2 a 10 kg; viés até 2% e desvio padrão até 5% acima de 10 kg | Limites da ICAR para medidores de leite de vaca, Seção 11 |
+| Meta | Erro por ordenha de no máximo **200 g ou 2% da produção, o que for maior**, em 28 de 30 comparações | Plano do piloto |
 
 O erro de uma ordenha vem de duas leituras, início e fim. Por isso cada leitura isolada precisa ser melhor que a meta.
+Os limites da ICAR estão citados a partir de resumo; conferir o texto da norma antes de usar em proposta. Ver `docs/07-viabilidade.md`.
 
 ### Referência
 
@@ -60,11 +66,17 @@ Erro de cada comparação:
 erro = (fim no posto − início no posto) − (antes na referência − depois na referência)
 ```
 
-**Aprovação:**
+**Aprovação da etapa, mínimo aceitável:**
+
+- viés, que é a média dos erros, até 200 g;
+- desvio padrão dos erros até 500 g;
+- nenhuma comparação acima de 1 kg.
+
+**Meta do produto:**
 
 - pelo menos 28 das 30 comparações dentro da meta;
 - nenhuma acima do dobro da meta;
-- média dos erros, que é o viés, até 100 g. Se o viés for maior, recalibrar e repetir.
+- viés até 100 g. Se o viés for maior, recalibrar e repetir.
 
 Ao fim, lavar o equipamento pelo procedimento normal da fazenda.
 
