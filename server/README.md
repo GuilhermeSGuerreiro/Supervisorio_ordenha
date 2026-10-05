@@ -57,6 +57,16 @@ Raspberry Pi 4 ou PC já existente, com PostgreSQL 16 e PostgREST. Ver `docs/06-
 
 10. Gravar a chave no posto pela porta serial. Ver `firmware/posto-esp32/README.md`.
 
+## Coleta por aproximação, etapa 1
+
+O banco roda no notebook. Perto do posto, conectado na rede `SCARA-POSTO-1`:
+
+```
+python3 tools/coletar.py --chave <chave do posto>
+```
+
+Acerta o relógio do posto, baixa os eventos, grava com `scara.ingerir` e confirma. Uma cópia bruta de cada lote fica em `./coletas/`.
+
 ## Exportação
 
 ```

@@ -22,18 +22,20 @@ Em casa:
 
 ### Semanas 3–5 · Um posto
 
-- Instalar o posto 1 na sala, com fonte, cabeamento e ponto de acesso se necessário.
+- Instalar o posto 1 na sala, com fonte e cabo. Sem servidor, sem ponto de acesso: o posto guarda e o notebook coleta.
+- Cadastrar a ordem de entrada das 12 vacas.
 - Rodar a fase 2 da validação, com 30 comparações.
 - O operador usa o posto 1 nas duas ordenhas do dia.
 
 **Avança se:**
 - fase 2 aprovada;
 - tara do balde vazio repetível dentro de 100 g ao longo das sessões;
-- o operador marca início e fim sozinho em pelo menos 10 sessões.
+- o operador marca início e fim sozinho em pelo menos 10 sessões;
+- associação automática pela ordem acertando pelo menos 95% das ordenhas, conferido na coleta.
 
 ### Semanas 6–9 · Três postos
 
-- Instalar os postos 2 e 3.
+- Instalar os postos 2 e 3, o servidor local e o ponto de acesso. Os postos passam ao modo servidor.
 - Coleta nas duas ordenhas, em todos os postos.
 - Começa a contagem dos 30 dias de uso.
 - Fase 3 da validação, se houver balança de plataforma.
@@ -81,9 +83,11 @@ Valores com reserva de 20%, gerados a partir de `planilhas/bom.csv`.
 
 | Liberação | Quando | O que cobre | Faixa provável |
 |---|---|---|---|
-| E1a | Início | Posto 1, fonte, cabo, armazenamento do servidor, suporte do celular, balança de referência, galões | Obrigatórios da E1: R$ 1.294 a 3.156 |
-| E1b | Fim da semana 1 | Condicionais: ponto de acesso, DR, nobreak, relógio, balança de plataforma | R$ 0 a 1.428 |
-| E2 | Aprovação das semanas 3–5 | Postos 2 e 3 e cabo adicional | R$ 1.404 a 3.612 |
+| E1a | Início | Posto 1 completo com relógio, fonte, cabo, balança de referência e galões | Obrigatórios da E1: R$ 1.018 a 2.544 |
+| E1b | Fim da semana 1 | Condicionais: DR, sensor de ambiente, balança de plataforma | R$ 0 a 516 |
+| E2 | Aprovação das semanas 3–5 | Postos 2 e 3, servidor local, ponto de acesso, armazenamento, painel | R$ 1.842 a 4.644, até 6.132 com condicionais |
+
+A balança de referência é quase um quinto da E1a. Emprestada de um laticínio, cooperativa ou escola técnica, a E1a cai para perto de R$ 800 a 2.000.
 | Dosador | Aprovação dos meses 3–4 | Orçamento próprio, fora desta tabela | — |
 
 Regras:

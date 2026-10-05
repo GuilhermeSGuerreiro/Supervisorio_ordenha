@@ -7,8 +7,8 @@ Preços são faixas estimadas em reais, sem cotação fechada, com valores de ou
 
 ## Totais por etapa
 
-- **E1**: posto 1, infraestrutura mínima e material de validação.
-- **E2**: postos 2 e 3 e cabo adicional.
+- **E1**: posto 1 no modo coleta por aproximação, mais material de validação. Sem servidor na fazenda.
+- **E2**: postos 2 e 3, servidor local, ponto de acesso e painel em tempo real.
 - **Mínimo**: só itens obrigatórios, preço mínimo.
 - **Máx. obrig.**: só itens obrigatórios, preço máximo. É a faixa provável.
 - **Máx. total**: inclui os condicionais no preço máximo. É o pior caso.
@@ -16,19 +16,19 @@ Preços são faixas estimadas em reais, sem cotação fechada, com valores de ou
 <!-- bom:inicio -->
 | Etapa | Grupo | Mínimo | Máx. obrig. | Máx. total |
 |---|---|---|---|---|
-| E1 | infra | R$ 275 | R$ 630 | R$ 1.750 |
-| E1 | posto | R$ 563 | R$ 1.450 | R$ 1.450 |
+| E1 | infra | R$ 0 | R$ 0 | R$ 280 |
+| E1 | posto | R$ 608 | R$ 1.570 | R$ 1.570 |
 | E1 | validacao | R$ 240 | R$ 550 | R$ 700 |
-| E2 | infra | R$ 60 | R$ 150 | R$ 150 |
-| E2 | posto | R$ 1.110 | R$ 2.860 | R$ 2.860 |
+| E2 | infra | R$ 395 | R$ 930 | R$ 2.070 |
+| E2 | posto | R$ 1.140 | R$ 2.940 | R$ 3.040 |
 
 Com reserva de 20%:
 
 | Etapa | Mínimo | Máx. obrig. | Máx. total |
 |---|---|---|---|
-| E1 | R$ 1.294 | R$ 3.156 | R$ 4.680 |
-| E2 | R$ 1.404 | R$ 3.612 | R$ 3.612 |
-| **Total** | R$ 2.698 | R$ 6.768 | R$ 8.292 |
+| E1 | R$ 1.018 | R$ 2.544 | R$ 3.060 |
+| E2 | R$ 1.842 | R$ 4.644 | R$ 6.132 |
+| **Total** | R$ 2.860 | R$ 7.188 | R$ 9.192 |
 <!-- bom:fim -->
 
 ## O que mudou em relação ao plano inicial
@@ -48,7 +48,9 @@ Com reserva de 20%:
 | Relógio do servidor | não previsto | DS3231 condicional na E1 | Sem internet, o servidor perde a hora em cada queda de energia |
 | Balança de referência | sem linha de orçamento | bancada 30 kg com verificação | A validação exige uma referência conferida |
 | Balança de ração | R$ 150 a 400, opcional | absorvida pela balança de referência | A mesma balança calibra a medida de ração |
-| Infraestrutura | toda na etapa 2 | mínima na E1 | O posto 1 não funciona sem ela |
+| Infraestrutura | toda na etapa 2 | só fonte e cabo na E1; servidor, ponto de acesso e armazenamento na E2 | Modo coleta: o notebook é o servidor e vem até o posto |
+| ESP32 do posto 1 | antena externa | DevKit comum, antena na placa | No modo coleta o computador fica a metros do posto |
+| Relógio | não previsto | DS3231 obrigatório em cada posto | Sem servidor para dar a hora, o posto precisa do próprio relógio |
 
 ## Por que estes componentes
 
@@ -87,6 +89,7 @@ Com reserva de 20%:
  GX16 alimentação ── fusível 1 A ── buck 12→5 V ──┬── ESP32 5V
                                                   └── HX711 VCC (analógico)
  ESP32 3V3 ─────────────────────────────────────────── HX711 VDD (lógica)
+ ESP32 3V3 ─────────────────────────────────────────── DS3231 VCC (SDA 21, SCL 22)
  ESP32 GND ─────────────────────────────────────────── HX711 GND
 
  Célula ── GX16 célula ── HX711 E+ E- A+ A-  (blindagem no GND do HX711, só nesse lado)
@@ -99,6 +102,8 @@ Com reserva de 20%:
 | Botão | GPIO 25 | Pull-up interno, botão ligado ao GND, capacitor de 100 nF em paralelo |
 | LED verde | GPIO 26 | Resistor de 330 Ω |
 | LED vermelho | GPIO 27 | Resistor de 330 Ω |
+| DS3231 SDA | GPIO 21 | Pull-up interno; o módulo costuma trazer os seus |
+| DS3231 SCL | GPIO 22 | |
 
 - Se o módulo HX711 tiver um só pino de alimentação, ligar em 3,3 V. A excitação cai, mas a resolução continua suficiente.
 - Evitar os pinos 0, 2, 5, 12 e 15, que interferem na partida do ESP32.

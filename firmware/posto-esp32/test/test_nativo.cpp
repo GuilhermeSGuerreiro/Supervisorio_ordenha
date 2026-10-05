@@ -34,6 +34,11 @@ static void testaTransicoes() {
   t = transicao(E::Ocioso, Acao::Balde);
   CHECA(t.aceita && t.tipo == T::BaldeRetirado && t.proximo == E::SemBalde);
 
+  t = transicao(E::Ocioso, Acao::Pula);
+  CHECA(t.aceita && t.tipo == T::Pulo && t.proximo == E::Ocioso);  // pular vaca não muda o estado
+  CHECA(!transicao(E::SemBalde, Acao::Pula).aceita);
+  CHECA(!transicao(E::Ordenhando, Acao::Pula).aceita);
+
   t = transicao(E::Ordenhando, Acao::Marca);
   CHECA(t.aceita && t.tipo == T::Fim && t.proximo == E::Ocioso);
   t = transicao(E::Ordenhando, Acao::Balde);

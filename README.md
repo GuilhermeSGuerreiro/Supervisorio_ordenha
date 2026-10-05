@@ -44,6 +44,7 @@ Primeiro compromisso: um posto funcionando, medição conferida e o operador reg
 | `server/db/schema.sql` | Modelo de dados PostgreSQL do servidor local |
 | `server/db/exportacao.sql` | Exportação em ICAR ADE 1.5 e visões de controle leiteiro para CSV |
 | `server/db/fixture_demo.sql` | Dados de demonstração para testes e para mostrar o painel |
+| `tools/coletar.py` | Coleta por aproximação: baixa os eventos do posto pelo Wi-Fi dele e grava no banco |
 | `tools/exportar.py` e `tools/validar_ade.py` | Gera os arquivos de exportação e valida o JSON contra os esquemas oficiais do ICAR |
 | `server/api/contrato.md` | Contrato HTTP entre posto, servidor e painel |
 | `planilhas/` | Lista de componentes e modelos CSV para validação, horas e custos |
@@ -55,6 +56,8 @@ Cada mudança de manejo é um experimento. O supervisório mede antes e depois, 
 
 ## Arquitetura em uma linha
 
-ESP32 publica pesos estáveis → servidor local (Raspberry/PC, PostgreSQL) decide início, fim e produção → painel web no celular → exportação em ICAR ADE e CSV para GisLeite, IDEAGRI, técnicos e programas de melhoramento → sincronização opcional com a nuvem.
+Etapa 1: ESP32 guarda pesos estáveis e toques do botão → o notebook vem até o posto, coleta pelo Wi-Fi do próprio ESP32 e grava no PostgreSQL local → o banco associa cada ordenha à vaca pela ordem fixa de entrada → exportação em ICAR ADE e CSV.
+
+Etapa 2: os postos passam a enviar em tempo real a um servidor local, com painel no celular e sincronização opcional com a nuvem.
 
 O posto não sabe qual vaca está sendo ordenhada. Toda a lógica de animal fica no servidor. Isso mantém o firmware simples e permite corrigir associações depois.

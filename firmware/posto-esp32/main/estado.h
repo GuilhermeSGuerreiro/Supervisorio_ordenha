@@ -22,6 +22,7 @@ inline const char* nomeEstado(EstadoPosto e) {
 enum class Acao : uint8_t {
   Marca = 0,  // toque curto
   Balde = 1,  // toque longo
+  Pula = 2,   // toque duplo: a próxima vaca da ordem não veio
 };
 
 struct Transicao {
@@ -38,6 +39,7 @@ inline Transicao transicao(EstadoPosto e, Acao a) {
       break;
     case EstadoPosto::Ocioso:
       if (a == Acao::Marca) return {true, TipoEvento::Inicio, EstadoPosto::Ordenhando};
+      if (a == Acao::Pula) return {true, TipoEvento::Pulo, EstadoPosto::Ocioso};
       return {true, TipoEvento::BaldeRetirado, EstadoPosto::SemBalde};
     case EstadoPosto::Ordenhando:
       if (a == Acao::Marca) return {true, TipoEvento::Fim, EstadoPosto::Ocioso};

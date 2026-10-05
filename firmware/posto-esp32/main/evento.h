@@ -7,6 +7,7 @@ enum class TipoEvento : uint8_t {
   BaldeColocado = 2,
   BaldeRetirado = 3,
   Anula = 4,
+  Pulo = 5,   // a próxima vaca da ordem não veio (D15)
 };
 
 inline const char* nomeTipo(TipoEvento t) {
@@ -16,6 +17,7 @@ inline const char* nomeTipo(TipoEvento t) {
     case TipoEvento::BaldeColocado: return "balde_colocado";
     case TipoEvento::BaldeRetirado: return "balde_retirado";
     case TipoEvento::Anula: return "anula";
+    case TipoEvento::Pulo: return "pulo";
   }
   return "?";
 }

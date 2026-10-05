@@ -16,6 +16,14 @@ O método está em `docs/08-mensuracao-manejo.md`.
 
 A prova de conceito começa só com o supervisório. Nenhuma mudança é proposta antes de existir linha de base.
 
+## Prova de conceito interna
+
+- Fazenda da família com cerca de 12 vacas em lactação.
+- As vacas entram sempre na mesma ordem e sempre no mesmo posto. O sistema usa essa ordem para saber qual vaca está no posto, sem celular e sem identificação eletrônica.
+- Um posto com ESP32 que guarda tudo na própria memória. Sem servidor na fazenda, sem internet, sem tempo real.
+- Coleta por aproximação: o computador chega, conecta no Wi-Fi do posto e baixa os eventos. O banco de dados roda no notebook.
+- Servidor local, três postos e painel em tempo real ficam para a segunda etapa, se a primeira provar a medição.
+
 ## Perguntas que o MVP responde
 
 | Pergunta | Dado que responde |

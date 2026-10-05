@@ -14,7 +14,10 @@ struct Config {
 };
 
 void iniciar(const Config& cfg, uint32_t boot);
+bool ativo();  // modo servidor ligado
 void publicarStatus(int32_t massaG, bool estavel, const char* estado);
+// Usado pela coleta por aproximação para passar o que o servidor já conhece.
+void informarMaxServidor(int64_t bootMax, int64_t seqMax);
 
 bool conectado();
 bool chaveRecusada();

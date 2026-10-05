@@ -124,3 +124,27 @@ O servidor guarda só o hash SHA-256 da chave do posto.
 - Toda saída de dados da fazenda depende de autorização do produtor, por parceiro.
 
 **Consequência.** Qualquer parceiro que fale ADE lê os dados sem código novo. O GisLeite e o IDEAGRI recebem o controle leiteiro diário. O produtor é dono do dado e decide quem recebe.
+
+## D14 · Coleta por aproximação na prova de conceito
+
+**Contexto.** Servidor local, ponto de acesso e painel em tempo real custam dinheiro e tempo de instalação que a primeira etapa não precisa gastar. A pergunta da etapa é se a medição funciona e se o operador usa.
+
+**Decisão.**
+- O posto é um ponto de acesso Wi-Fi protegido por senha e serve a própria fila por HTTP.
+- O computador vem até o posto, acerta o relógio, baixa os eventos, grava no banco local e confirma. `tools/coletar.py` faz isso.
+- Cada posto tem um relógio DS3231 com bateria, porque não há servidor para dar a hora.
+- O modo servidor, com envio em tempo real, continua no firmware e é ligado por um comando na serial quando a etapa 2 chegar.
+
+**Consequência.** A etapa 1 fica sem servidor, sem ponto de acesso, sem nobreak e sem celular. A fila na flash, que já existia por causa de quedas de Wi-Fi, vira o mecanismo principal. O custo da etapa cai cerca de 20% e a instalação vira fonte, cabo e caixa.
+
+## D15 · Associação pela ordem fixa de entrada
+
+**Contexto.** Na fazenda do piloto as vacas entram sempre na mesma ordem e no mesmo posto. Escolher a vaca no celular a cada ordenha é o maior atrito de uso, e identificação eletrônica está fora do escopo.
+
+**Decisão.**
+- Cada vaca tem ordem de entrada e posto habitual cadastrados.
+- Sem escolha no painel, o servidor associa o início à próxima vaca da ordem, descontando ausências do turno e pulos.
+- Dois toques no botão registram um pulo: a próxima vaca da ordem não veio.
+- A associação automática fica marcada e é corrigível depois.
+
+**Consequência.** O operador só aperta o botão. A conferência semanal mostra a taxa de acerto da ordem, e essa taxa é critério de avanço da etapa 1. Em fazendas sem ordem fixa, o painel volta a ser necessário, ou a identificação eletrônica entra no módulo 2.

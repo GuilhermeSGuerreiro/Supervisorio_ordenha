@@ -29,6 +29,7 @@ Config cfg;
 uint32_t bootAtual = 0;
 char hostNtp[96] = "";
 
+std::atomic<bool> ativo_{false};
 std::atomic<bool> conectado_{false};
 std::atomic<bool> recusada_{false};
 std::atomic<int64_t> bootMax_{-1};
@@ -275,7 +276,15 @@ void iniciar(const Config& c, uint32_t boot) {
   ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
   ESP_ERROR_CHECK(esp_wifi_start());
 
+  ativo_ = true;
   xTaskCreatePinnedToCore(tarefa, "rede", 8192, nullptr, 4, nullptr, 0);
+}
+
+bool ativo() { return ativo_; }
+
+void informarMaxServidor(int64_t bootMax, int64_t seqMax) {
+  bootMax_ = bootMax;
+  seqMax_ = seqMax;
 }
 
 void publicarStatus(int32_t massaG, bool estavel, const char* estado) {

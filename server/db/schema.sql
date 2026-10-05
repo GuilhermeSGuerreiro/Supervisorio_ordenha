@@ -29,7 +29,7 @@ end $$;
 
 create type turno as enum ('manha', 'tarde', 'noite');
 create type destino_leite as enum ('tanque', 'descarte', 'bezerro', 'casa');
-create type tipo_evento as enum ('inicio', 'fim', 'balde_colocado', 'balde_retirado', 'anula');
+create type tipo_evento as enum ('inicio', 'fim', 'balde_colocado', 'balde_retirado', 'anula', 'pulo');
 create type origem_coleta as enum ('ticket', 'regua');
 
 -- ---------------------------------------------------------------------------
@@ -62,7 +62,8 @@ create table animal (
   raca                text,
   nascimento          date,
   ordenha_com_bezerro boolean not null default false,
-  ordem_entrada       int,
+  ordem_entrada       int,                      -- posição na fila de entrada; com ordem fixa, define a vaca de cada início
+  posto_habitual      smallint,                 -- número do posto onde a vaca costuma ser ordenhada; nulo = qualquer
   baixa_em            date,
   motivo_baixa        text check (motivo_baixa in ('venda', 'morte', 'descarte', 'outro')),
   criado_em           timestamptz not null default now(),
@@ -186,6 +187,7 @@ create table ordenha (
   id             uuid primary key default gen_random_uuid(),
   sessao_id      uuid not null references sessao,
   animal_id      uuid references animal,          -- nulo: pendente de associação
+  associacao     text check (associacao in ('manual', 'automatica')),
   destino        destino_leite not null default 'tanque',
   observacao     text,
   anulada_em     timestamptz,
@@ -446,7 +448,7 @@ begin
   end if;
 
   select data into dia from sessao where id = o.sessao_id;
-  update ordenha set animal_id = p_animal, destino = destino_padrao(p_animal, dia) where id = o.id;
+  update ordenha set animal_id = p_animal, associacao = 'manual', destino = destino_padrao(p_animal, dia) where id = o.id;
   return o.id;
 end $$;
 
@@ -474,6 +476,41 @@ begin
   end if;
   update ordenha set anulada_em = now(), anulada_motivo = p_motivo
    where id = p_ordenha and anulada_em is null;
+end $$;
+
+-- Ordem fixa (D15): a k-ésima vaca em lactação do posto, pela ordem de entrada, descontando ausências do turno.
+-- k = ordenhas já iniciadas no posto nesta sessão + pulos registrados.
+create function _proxima_da_ordem(p_posto uuid, p_sessao uuid, p_em timestamptz) returns uuid
+language plpgsql stable as $$
+declare
+  po       posto;
+  s        sessao;
+  posicao  int;
+begin
+  select * into strict po from posto where id = p_posto;
+  select * into strict s from sessao where id = p_sessao;
+
+  select count(distinct pa.ordenha_id)
+       + (select count(*) from evento_posto e
+           where e.posto_id = p_posto and e.tipo = 'pulo' and e.anulado_por is null
+             and e.ocorrido_em < p_em
+             and sessao_de(po.fazenda_id, e.ocorrido_em) = p_sessao)
+    into posicao
+    from parcial pa join ordenha o on o.id = pa.ordenha_id
+   where pa.posto_id = p_posto and o.sessao_id = p_sessao and not pa.anulada and o.anulada_em is null;
+
+  return (
+    select a.id
+      from animal a
+      join lactacao l on l.animal_id = a.id and l.data_parto <= s.data
+                     and (l.data_secagem is null or l.data_secagem > s.data)
+     where a.fazenda_id = po.fazenda_id
+       and a.ordem_entrada is not null
+       and (a.baixa_em is null or a.baixa_em > s.data)
+       and (a.posto_habitual is null or a.posto_habitual = po.numero)
+       and not exists (select 1 from ausencia au where au.animal_id = a.id and au.data = s.data and au.turno = s.turno)
+     order by a.ordem_entrada, a.brinco
+    offset posicao limit 1);
 end $$;
 
 -- Aplica um evento recém-gravado. Erros de sequência são devolvidos como texto, nunca como exceção (D4).
@@ -505,12 +542,20 @@ begin
       select id into ord from ordenha
        where sessao_id = ses and animal_id = sel and anulada_em is null;
       if ord is null then
-        insert into ordenha (sessao_id, animal_id, destino)
-        values (ses, sel, destino_padrao(sel, (select data from sessao where id = ses)))
+        insert into ordenha (sessao_id, animal_id, associacao, destino)
+        values (ses, sel, 'manual', destino_padrao(sel, (select data from sessao where id = ses)))
         returning id into ord;
       end if;
     else
-      insert into ordenha (sessao_id) values (ses) returning id into ord;
+      -- Sem escolha no painel: ordem fixa de entrada (D15). Fica como automática, corrigível depois.
+      sel := _proxima_da_ordem(e.posto_id, ses, e.ocorrido_em);
+      if sel is not null and not exists (select 1 from ordenha where sessao_id = ses and animal_id = sel and anulada_em is null) then
+        insert into ordenha (sessao_id, animal_id, associacao, destino)
+        values (ses, sel, 'automatica', destino_padrao(sel, (select data from sessao where id = ses)))
+        returning id into ord;
+      else
+        insert into ordenha (sessao_id) values (ses) returning id into ord;
+      end if;
     end if;
     insert into parcial (posto_id, ordenha_id, balde_ciclo_id, evento_inicio, massa_inicio_g, estavel, inconsistente)
     values (e.posto_id, ord, ciclo.id, e.id, e.massa_g, e.estavel and e.massa_g is not null,
@@ -546,6 +591,10 @@ begin
     update balde_ciclo set evento_retirado = e.id where id = ciclo.id;
     return case when par.id is not null then 'balde retirado com parcial aberta' end;
 
+  when 'pulo' then
+    -- A próxima vaca da ordem não veio. Só faz sentido com o posto ocioso.
+    return case when par.id is not null then 'pulo com parcial aberta' end;
+
   when 'anula' then
     select * into alvo from evento_posto
      where posto_id = e.posto_id and boot = e.ref_boot and seq = e.ref_seq;
@@ -574,6 +623,8 @@ begin
           return 'anulação de retirada com outro balde colocado';
         end if;
         update balde_ciclo set evento_retirado = null where evento_retirado = alvo.id;
+      when 'pulo' then
+        null;  -- a anulação já marcou anulado_por; a ordem recalcula sozinha
       else
         return 'anulação de anulação não é suportada';
     end case;
@@ -773,6 +824,7 @@ select
   s.turno,
   o.animal_id,
   a.brinco,
+  o.associacao,
   o.destino,
   o.anulada_em,
   count(p.id)                                   as parciais,
@@ -1165,12 +1217,14 @@ grant insert, update on animal, lactacao, ausencia, medida_racao, racao_programa
                         racao_fornecida, ocorrencia, intervencao, coleta_tanque,
                         lote, lote_animal, mudanca_manejo, ambiente to scara_operador;
 grant update (destino, observacao) on ordenha to scara_operador;
+grant update (ordem_entrada, posto_habitual) on animal to scara_operador;
 grant update (nome, limite_balde_g, tara_referencia_g) on posto to scara_operador;
 grant execute on function selecionar_animal(uuid, uuid), associar_animal(uuid, uuid),
                           anular_ordenha(uuid, text), nova_chave_posto(uuid),
                           definir_pin(uuid, text) to scara_operador;
 -- Funções chamadas pelas visões.
 grant execute on function turno_de(uuid, timestamptz), data_de(uuid, timestamptz),
-                          destino_padrao(uuid, date), itu(numeric, numeric) to scara_operador;
+                          destino_padrao(uuid, date), itu(numeric, numeric),
+                          _proxima_da_ordem(uuid, uuid, timestamptz) to scara_operador;
 
 commit;

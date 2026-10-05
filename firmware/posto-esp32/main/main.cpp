@@ -7,9 +7,11 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <sys/time.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "coleta.h"
 #include "config.h"
 #include "driver/gpio.h"
 #include "driver/uart.h"
@@ -28,6 +30,7 @@
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "rede.h"
+#include "rtc.h"
 
 namespace {
 
@@ -67,6 +70,7 @@ struct {
 uint32_t confirmacaoAteMs = 0;
 uint32_t recusaAteMs = 0;
 bool falhaGravacao = false;
+bool modoColeta = true;  // D14: padrão é coleta por aproximação; "modo servidor" liga o envio por Wi-Fi
 
 struct Trava {
   Trava() { xSemaphoreTake(mtx, portMAX_DELAY); }
@@ -74,6 +78,8 @@ struct Trava {
 };
 
 uint32_t agoraMs() { return static_cast<uint32_t>(esp_timer_get_time() / 1000); }
+uint64_t uptimeMs() { return rede::uptimeMs(); }
+int64_t epochMs() { return rede::epochMs(); }
 
 // ---------------------------------------------------------------------------
 // NVS
@@ -104,7 +110,7 @@ void salvarEstado() {
   nvs_commit(nvs);
 }
 
-void carregar(rede::Config& rc) {
+void carregar(rede::Config& rc, coleta::Config& cc) {
   boot = lerU32("boot", 0) + 1;
   seq = lerU32("seq", 0);
 
@@ -141,6 +147,15 @@ void carregar(rede::Config& rc) {
   lerStr("servidor", rc.servidor, sizeof rc.servidor);
   lerStr("ntp", rc.ntp, sizeof rc.ntp);
   lerStr("chave", rc.chave, sizeof rc.chave);
+
+  char modo[16];
+  lerStr("modo", modo, sizeof modo);
+  modoColeta = strcmp(modo, "servidor") != 0;
+  uint8_t np = 1;
+  nvs_get_u8(nvs, "posto", &np);
+  cc.numeroPosto = np;
+  lerStr("ap_senha", cc.senhaAp, sizeof cc.senhaAp);
+  strlcpy(cc.chave, rc.chave, sizeof cc.chave);
 }
 
 // ---------------------------------------------------------------------------
@@ -225,8 +240,8 @@ void acaoOperador(Acao a) {
   pendente.t = t;
   pendente.amostraMarca = amostras;
   pendente.desdeMs = agoraMs();
-  pendente.uptimeMs = rede::uptimeMs();
-  pendente.epochMs = rede::epochMs();
+  pendente.uptimeMs = uptimeMs();
+  pendente.epochMs = epochMs();
 }
 
 void anular() {
@@ -245,8 +260,8 @@ void anular() {
   e.massaG = MASSA_AUSENTE;
   e.refBoot = ultimo.boot;
   e.refSeq = ultimo.seq;
-  e.uptimeMs = rede::uptimeMs();
-  e.epochMs = rede::epochMs();
+  e.uptimeMs = uptimeMs();
+  e.epochMs = epochMs();
   if (!gravarEvento(e)) return;
   estado = ultimo.estadoAnterior;
   ultimo.valido = false;  // um nível de anulação
@@ -273,6 +288,8 @@ struct {
   int ultimoNivel = 1;
   uint32_t mudouMs = 0;
   uint32_t apertouMs = 0;
+  bool curtoPendente = false;  // um toque curto aguardando um possível segundo toque
+  uint32_t curtoEmMs = 0;
 } botao;
 
 uint32_t botaoSeguradoMs() { return botao.nivelEstavel ? 0 : agoraMs() - botao.apertouMs; }
@@ -294,13 +311,29 @@ void lerBotao() {
   }
   const uint32_t duracao = agora - botao.apertouMs;
   if (duracao >= TOQUE_ANULA_MS) {
+    botao.curtoPendente = false;
     anular();
   } else if (duracao >= TOQUE_LONGO_MS) {
+    botao.curtoPendente = false;
     acaoOperador(Acao::Balde);
   } else if (duracao <= TOQUE_CURTO_MAX_MS) {
-    acaoOperador(Acao::Marca);
+    if (botao.curtoPendente && agora - botao.curtoEmMs <= TOQUE_DUPLO_MS) {
+      botao.curtoPendente = false;
+      acaoOperador(Acao::Pula);  // dois toques: a próxima vaca da ordem não veio
+    } else {
+      botao.curtoPendente = true;  // decide em resolverToqueCurto()
+      botao.curtoEmMs = agora;
+    }
   }
   // Entre o curto e o longo: ignorado, evita ação ambígua.
+}
+
+// Um toque curto só vira "marca" se não vier um segundo toque logo depois.
+void resolverToqueCurto() {
+  if (botao.curtoPendente && agoraMs() - botao.curtoEmMs > TOQUE_DUPLO_MS) {
+    botao.curtoPendente = false;
+    acaoOperador(Acao::Marca);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -332,7 +365,7 @@ void atualizarLed() {
     case EstadoPosto::Ocioso: verde = estavel() || pisca2Hz; break;  // fixo quando estável
     case EstadoPosto::Ordenhando: verde = (t / 1000) % 2; break;     // pisca lento
   }
-  const bool semRede = !rede::conectado() && (t % 2000) >= 1000 && (t % 2000) < 1100;
+  const bool semRede = rede::ativo() && !rede::conectado() && (t % 2000) >= 1000 && (t % 2000) < 1100;
   led(verde && !semRede, semRede);
 }
 
@@ -347,10 +380,12 @@ void tarefaMedicao(void*) {
       Trava tr;
       lerBalanca();
       lerBotao();
+      resolverToqueCurto();
       verificarPendente();
       atualizarLed();
       if (static_cast<int32_t>(agoraMs() - proximoStatus) >= 0) {
         rede::publicarStatus(massaAtualG(), estavel(), nomeEstado(estado));
+        coleta::publicarStatus(massaAtualG(), estavel(), nomeEstado(estado));
         proximoStatus = agoraMs() + 1000;
       }
     }
@@ -383,6 +418,10 @@ void ajuda() {
       "  servidor <url>        ex.: http://192.168.0.10:3000\n"
       "  ntp <host>            servidor de hora (padrão: host do servidor)\n"
       "  chave <hex>           chave do posto gerada no servidor\n"
+      "  modo coleta|servidor  coleta: ponto de acesso próprio (padrão); servidor: envia por Wi-Fi\n"
+      "  posto <n>             número do posto, usado no nome da rede SCARA-POSTO-n\n"
+      "  ap_senha <senha>      senha do ponto de acesso (8 a 63 caracteres)\n"
+      "  hora <epoch_s>        acerta o relógio pela serial\n"
       "  tara                  zera com a plataforma vazia\n"
       "  cal <gramas>          calibra com massa conhecida sobre a plataforma\n"
       "  reiniciar             aplica configuração de rede\n");
@@ -395,8 +434,9 @@ void info() {
   printf("bruto=%ld massa=%ld g desvio=%.1f g estavel=%d falha=%d\n", long(ultimoBruto), long(massaAtualG()),
          cal.gramasDesvio(janela.desvioBruto()), estavel(), balancaFalhou());
   printf("offset=%ld fator=%.4f calibrado=%d\n", long(cal.offset), cal.fator, cal.valida());
-  printf("fila=%u wifi=%d rssi=%d hora=%d chave_recusada=%d\n", unsigned(fila::pendentes()), rede::conectado(),
-         rede::rssi(), rede::epochMs() > 0, rede::chaveRecusada());
+  printf("modo=%s fila=%u hora=%d rtc=%d clientes_ap=%d wifi=%d rssi=%d chave_recusada=%d\n",
+         modoColeta ? "coleta" : "servidor", unsigned(fila::pendentes()), epochMs() > 0, rtc::presente(),
+         coleta::clientes(), rede::conectado(), rede::rssi(), rede::chaveRecusada());
   char ssid[33], servidor[96], chave[65];
   lerStr("ssid", ssid, sizeof ssid);
   lerStr("servidor", servidor, sizeof servidor);
@@ -416,9 +456,33 @@ void comando(char* linha) {
 
   if (!strcmp(linha, "info")) return info();
   if (!strcmp(linha, "reiniciar")) return esp_restart();
+  if (!strcmp(linha, "modo")) {
+    if (strcmp(arg, "coleta") && strcmp(arg, "servidor")) return (void)printf("uso: modo coleta|servidor\n");
+    nvs_set_str(nvs, "modo", arg);
+    nvs_commit(nvs);
+    printf("modo %s gravado. Use 'reiniciar' para aplicar.\n", arg);
+    return;
+  }
+  if (!strcmp(linha, "posto")) {
+    const int n = atoi(arg);
+    if (n < 1 || n > 99) return (void)printf("uso: posto <1..99>\n");
+    nvs_set_u8(nvs, "posto", static_cast<uint8_t>(n));
+    nvs_commit(nvs);
+    printf("posto %d gravado. Use 'reiniciar' para aplicar.\n", n);
+    return;
+  }
+  if (!strcmp(linha, "hora")) {
+    const long long s = atoll(arg);
+    if (s < 1700000000LL) return (void)printf("uso: hora <segundos desde 1970, UTC>\n");
+    struct timeval tv = {static_cast<time_t>(s), 0};
+    settimeofday(&tv, nullptr);
+    printf("hora acertada%s\n", rtc::gravar(tv.tv_sec) ? " e gravada no DS3231" : "");
+    return;
+  }
   if (!strcmp(linha, "ssid") || !strcmp(linha, "senha") || !strcmp(linha, "servidor") || !strcmp(linha, "ntp") ||
-      !strcmp(linha, "chave")) {
+      !strcmp(linha, "chave") || !strcmp(linha, "ap_senha")) {
     if (!strcmp(linha, "chave") && strlen(arg) < 32) return (void)printf("chave curta demais\n");
+    if (!strcmp(linha, "ap_senha") && (strlen(arg) < 8 || strlen(arg) > 63)) return (void)printf("senha de 8 a 63 caracteres\n");
     nvs_set_str(nvs, linha, arg);
     nvs_commit(nvs);
     printf("%s gravado. Use 'reiniciar' para aplicar.\n", linha);
@@ -506,7 +570,20 @@ extern "C" void app_main() {
   if (!fila::iniciar()) falhaGravacao = true;
 
   rede::Config rc;
-  carregar(rc);
+  coleta::Config cc;
+  carregar(rc, cc);
+
+  // Relógio: se o DS3231 tiver hora válida, o sistema parte com ela.
+  if (rtc::iniciar()) {
+    time_t agora;
+    if (rtc::ler(agora)) {
+      struct timeval tv = {agora, 0};
+      settimeofday(&tv, nullptr);
+      ESP_LOGI(TAG, "hora carregada do DS3231");
+    } else {
+      ESP_LOGW(TAG, "DS3231 sem hora válida: acerte com 'hora' ou pela coleta");
+    }
+  }
   ESP_LOGI(TAG, "SCARA %s boot=%u seq=%u estado=%s", esp_app_get_description()->version, unsigned(boot),
            unsigned(seq), nomeEstado(estado));
 
@@ -514,7 +591,11 @@ extern "C" void app_main() {
   ultimaAmostraMs = agoraMs();
   if (!cal.valida()) ESP_LOGW(TAG, "balança sem calibração: use tara e cal");
 
-  rede::iniciar(rc, boot);
+  if (modoColeta) {
+    coleta::iniciar(cc, boot);
+  } else {
+    rede::iniciar(rc, boot);
+  }
   xTaskCreatePinnedToCore(tarefaMedicao, "medicao", 6144, nullptr, 5, nullptr, 1);
   xTaskCreatePinnedToCore(tarefaConsole, "console", 4096, nullptr, 2, nullptr, 0);
   ajuda();

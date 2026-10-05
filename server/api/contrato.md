@@ -7,6 +7,8 @@ As funções estão em `server/db/schema.sql` e os cenários em `server/db/teste
 
 Sem token. A chave do posto vai no corpo e é conferida pelo hash SHA-256.
 
+Na etapa 1 não há servidor na fazenda: `tools/coletar.py` baixa os eventos do posto pela rede Wi-Fi dele e chama estas mesmas funções no banco do notebook. Os endpoints HTTP do posto estão em `firmware/posto-esp32/README.md`.
+
 ### Enviar eventos
 
 ```
@@ -46,7 +48,7 @@ Content-Type: application/json
 | Campo | Regra |
 |---|---|
 | `p_boot`, `p_uptime_ms` | Estado atual do posto no momento do envio. Usados para estimar a hora de eventos sem `epoch_ms` |
-| `tipo` | `inicio`, `fim`, `balde_colocado`, `balde_retirado`, `anula` |
+| `tipo` | `inicio`, `fim`, `balde_colocado`, `balde_retirado`, `anula`, `pulo` |
 | `massa_g` | Gramas, inteiro. Pode faltar se a leitura falhou. Nesse caso a parcial fica instável |
 | `epoch_ms` | Só quando o posto tem hora sincronizada. Omitir se não tiver |
 | `ref_boot`, `ref_seq` | Obrigatórios só em `anula` |

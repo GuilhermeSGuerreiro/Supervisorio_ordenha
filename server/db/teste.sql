@@ -349,5 +349,32 @@ begin
   assert not exists (select 1 from v_mudanca_sobreposta), 'não devia haver sobreposição';
 end $$;
 
+-- 15. Ordem fixa sem painel: V01, V02, V03 entram nessa ordem; V02 não vem e o operador registra um pulo.
+-- Sem seleção no painel, o servidor associa pela ordem. V04 está seca e não entra na fila.
+
+update animal set ordem_entrada = 1 where brinco = 'V01';
+update animal set ordem_entrada = 2 where brinco = 'V02';
+update animal set ordem_entrada = 3 where brinco = 'V03';
+delete from selecao_posto;
+
+select ingerir(:'chave', 9, 0, jsonb_build_array(
+  pg_temp.ev(9, 1, 'balde_retirado', 0,     '2026-11-02 05:00'),
+  pg_temp.ev(9, 2, 'balde_colocado', 12000, '2026-11-02 05:01'),
+  pg_temp.ev(9, 3, 'inicio',         12000, '2026-11-02 05:02'),
+  pg_temp.ev(9, 4, 'fim',            19000, '2026-11-02 05:10'),
+  pg_temp.ev(9, 5, 'pulo',           null,  '2026-11-02 05:11'),
+  pg_temp.ev(9, 6, 'inicio',         19000, '2026-11-02 05:12'),
+  pg_temp.ev(9, 7, 'fim',            24000, '2026-11-02 05:20')));
+
+do $$ begin
+  assert pg_temp.producao('V01', '2026-11-02', 'manha') = 7000, 'V01 devia ser a primeira da ordem';
+  assert pg_temp.producao('V03', '2026-11-02', 'manha') = 5000, 'V03 devia vir depois do pulo de V02';
+  assert (select associacao from v_ordenha where brinco = 'V03' and data = '2026-11-02') = 'automatica',
+    'associação devia ser automática';
+  assert not exists (select 1 from v_ordenha where brinco = 'V02' and data = '2026-11-02' and anulada_em is null),
+    'V02 não devia ter ordenha';
+  assert not exists (select 1 from evento_posto where boot = 9 and erro is not null), 'pulo não devia gerar erro';
+end $$;
+
 \echo 'teste.sql: todos os cenários passaram'
 rollback;

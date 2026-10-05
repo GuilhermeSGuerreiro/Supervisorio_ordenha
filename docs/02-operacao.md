@@ -3,6 +3,17 @@
 Este documento define o que o operador faz, o que o posto mede e o que o servidor calcula.
 As regras aqui são a referência para o firmware e para o servidor.
 
+## Modo de operação na prova de conceito
+
+Na primeira etapa não há servidor na fazenda nem celular na ordenha.
+
+- O posto guarda todos os eventos na própria memória, com data e hora do relógio DS3231.
+- As vacas entram sempre na mesma ordem. O servidor, ao receber os eventos, associa cada ordenha à vaca pela ordem de entrada cadastrada. Se uma vaca não vier, o operador dá **dois toques** no botão antes da próxima, e a ordem pula essa vaca.
+- Quando o computador chega, conecta no Wi-Fi do posto, rede `SCARA-POSTO-1`, e roda `tools/coletar.py`. O programa acerta o relógio do posto, baixa os eventos, grava no banco do notebook e confirma. O posto só apaga o que foi confirmado.
+- A associação automática fica marcada como tal. Erros são corrigidos no banco depois, pela ordem dos eventos.
+
+Tudo o que segue vale para os dois modos. No modo coleta, "servidor" é o banco no notebook.
+
 ## Divisão de responsabilidades
 
 | Parte | Faz | Não faz |
@@ -72,6 +83,7 @@ O servidor percebe que a mesma vaca tem duas parciais com uma troca de balde ent
 |---|---|---|
 | Toque curto | `marca` | Início ou fim, conforme o estado |
 | Toque longo, 2 s | `balde` | Balde colocado ou retirado, conforme o estado |
+| Toque duplo | `pulo` | A próxima vaca da ordem não veio. Só com o posto ocioso |
 | Toque longo, 6 s | `anula` | Anula o último evento, em caso de engano |
 
 | LED | Significado |
@@ -105,6 +117,7 @@ O LED é bicolor. Os padrões estão em `firmware/posto-esp32/main/main.cpp`, na
 - `balde` em OCIOSO grava **balde retirado** e vai para SEM_BALDE.
 - `balde` em SEM_BALDE grava **balde colocado** e vai para OCIOSO.
 - `balde` em ORDENHANDO é recusado com LED vermelho. O operador tem de marcar o fim antes.
+- `pulo` em OCIOSO grava **pulo** e fica em OCIOSO. Em qualquer outro estado é recusado.
 - O estado é salvo na memória não volátil. Depois de um reinício, o posto volta ao estado em que estava.
 
 ## Estabilidade
@@ -130,10 +143,16 @@ Leituras marcadas como instáveis entram no banco, mas a ordenha fica pendente d
 
 ## Associação com a vaca
 
-1. Se o operador escolheu a vaca antes do início, a parcial já nasce associada.
-2. Se não escolheu, a parcial fica sem animal e aparece no painel como pendente.
-3. O painel sugere a vaca pela ordem habitual de entrada e pelo posto.
-4. Ordenhas sem animal no fim do dia não contam como válidas.
+1. Se o operador escolheu a vaca no painel antes do início, a parcial nasce associada como manual.
+2. Senão, o servidor pega a próxima vaca da **ordem de entrada** cadastrada: vacas em lactação, do posto habitual, sem ausência registrada no turno, na posição igual ao número de ordenhas já iniciadas no posto nesta sessão mais os pulos. A associação fica marcada como automática.
+3. Se a ordem acabar, a parcial fica sem animal e aparece como pendente.
+4. Correções são feitas depois, no banco ou no painel, pela ordem dos eventos.
+5. Ordenhas sem animal no fim do dia não contam como válidas.
+
+Regras para a ordem fixa funcionar:
+- A ordem de entrada de cada vaca é cadastrada uma vez e só muda com registro.
+- Vaca que entra em outro posto num dia é corrigida depois; não é o caso normal.
+- Vaca que não vem é marcada com dois toques no botão, ou com ausência no cadastro antes da coleta.
 
 ## Registro válido
 
@@ -178,6 +197,17 @@ O padrão é tanque. Vacas com carência de medicamento registrada ficam com des
 | Conciliação | Diferença entre postos e tanque maior que 5% no dia |
 
 As regras são revistas na reunião semanal. Alerta que ninguém usa é desligado.
+
+## Coleta por aproximação
+
+Rotina sugerida: a cada visita, ou pelo menos uma vez por semana.
+
+1. Ligar o notebook perto do posto e conectar na rede `SCARA-POSTO-1`.
+2. Rodar `python3 tools/coletar.py --chave <chave do posto>`.
+3. Conferir no fim: "0 pendentes no posto".
+4. Abrir as pendências no banco e corrigir associações, se houver.
+
+A memória do posto guarda pelo menos 4.000 eventos. Com 12 vacas e duas ordenhas por dia, isso dá cerca de 70 dias sem coleta.
 
 ## Tempos a medir
 
