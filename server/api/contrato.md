@@ -146,6 +146,25 @@ Authorization: Bearer <token>
 | Efeito de cada mudança de manejo | `GET /v_efeito_mudanca?order=inicio.desc` |
 | Efeito por vaca de uma mudança | `GET /v_efeito_mudanca_animal?mudanca_id=eq.<id>` |
 | Mudanças que se sobrepõem | `GET /v_mudanca_sobreposta` |
+| Controle leiteiro por vaca e dia, para CSV | `GET /v_exportacao_controle_leiteiro?data=gte.2026-09-01` com `Accept: text/csv` |
+| Cadastro de animais, para CSV | `GET /v_exportacao_animais` com `Accept: text/csv` |
+
+### Exportação ICAR ADE
+
+Cada coleção do padrão é uma função, chamada por `GET`. Os parâmetros `p_pagina` e `p_tamanho` paginam.
+
+| Coleção ICAR | Chamada |
+|---|---|
+| animals | `GET /rpc/ade_animals?p_fazenda=<id>` |
+| milking-visits | `GET /rpc/ade_milking_visits?p_fazenda=<id>&p_desde=2026-09-01&p_ate=2026-09-30` |
+| lactations | `GET /rpc/ade_lactations?p_fazenda=<id>` |
+| parturitions | `GET /rpc/ade_parturitions?p_fazenda=<id>` |
+| drying-offs | `GET /rpc/ade_dry_offs?p_fazenda=<id>` |
+| feed-intakes | `GET /rpc/ade_feed_intakes?p_fazenda=<id>&p_desde=...&p_ate=...` |
+| animal-sets, animal-set-joins, animal-set-leaves | `GET /rpc/ade_animal_sets`, `ade_animal_set_joins`, `ade_animal_set_leaves` |
+| tudo em um objeto | `GET /rpc/ade_tudo?p_fazenda=<id>&p_desde=...&p_ate=...` |
+
+A resposta segue o envelope do padrão: `view` com totais e paginação, `member` com os recursos.
 
 Exportação em CSV: qualquer leitura acima com o cabeçalho `Accept: text/csv`.
 

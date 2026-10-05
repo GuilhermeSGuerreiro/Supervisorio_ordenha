@@ -13,20 +13,29 @@ Raspberry Pi 4 ou PC já existente, com PostgreSQL 16 e PostgREST. Ver `docs/06-
    psql -v ON_ERROR_STOP=1 -d scara -f server/db/schema.sql
    ```
 
-4. Rodar os testes. Eles não deixam dados no banco:
+4. Aplicar a exportação:
+
+   ```
+   psql -v ON_ERROR_STOP=1 -d scara -f server/db/exportacao.sql
+   ```
+
+5. Rodar os testes. O primeiro não deixa dados no banco; o segundo usa um banco temporário próprio:
 
    ```
    psql -v ON_ERROR_STOP=1 -d scara -f server/db/teste.sql
+   ICAR_ADE_DIR=/caminho/para/adewg/ICAR server/db/teste_exportacao.sh
    ```
 
-5. Criar o papel de login do PostgREST, com senha forte guardada fora do repositório:
+   O segundo precisa do repositório do padrão ICAR clonado: `git clone -b ADE-1 https://github.com/adewg/ICAR`.
+
+6. Criar o papel de login do PostgREST, com senha forte guardada fora do repositório:
 
    ```sql
    create role scara_api login noinherit password '...';
    grant scara_anon, scara_operador to scara_api;
    ```
 
-6. Gerar o segredo do token e gravar no banco:
+7. Gerar o segredo do token e gravar no banco:
 
    ```
    openssl rand -hex 32
@@ -36,8 +45,8 @@ Raspberry Pi 4 ou PC já existente, com PostgreSQL 16 e PostgREST. Ver `docs/06-
    insert into scara.config_segura values ('jwt_segredo', '<segredo>');
    ```
 
-7. Copiar `server/postgrest.conf.example` para `postgrest.conf`, preencher com o mesmo segredo e o IP da rede local.
-8. Cadastrar fazenda e postos, definir o PIN do painel e gerar a chave de cada posto:
+8. Copiar `server/postgrest.conf.example` para `postgrest.conf`, preencher com o mesmo segredo e o IP da rede local.
+9. Cadastrar fazenda e postos, definir o PIN do painel e gerar a chave de cada posto:
 
    ```sql
    insert into scara.fazenda (nome, municipio) values ('...', 'Morada Nova') returning id;
@@ -46,7 +55,15 @@ Raspberry Pi 4 ou PC já existente, com PostgreSQL 16 e PostgREST. Ver `docs/06-
    select scara.nova_chave_posto('<posto>');
    ```
 
-9. Gravar a chave no posto pela porta serial. Ver `firmware/posto-esp32/README.md`.
+10. Gravar a chave no posto pela porta serial. Ver `firmware/posto-esp32/README.md`.
+
+## Exportação
+
+```
+python3 tools/exportar.py --fazenda <id> --saida ./exportacao --desde 2026-09-01 --ate 2026-09-30
+```
+
+ICAR ADE em `ade/`, CSV para GisLeite e IDEAGRI em `csv/`. Detalhes em `docs/10-plataforma-integrada.md`.
 
 ## Hora
 

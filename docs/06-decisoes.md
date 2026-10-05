@@ -111,3 +111,16 @@ O servidor guarda só o hash SHA-256 da chave do posto.
 - O efeito é calculado em SQL, em visões, com intervalo de confiança e veredicto em texto.
 
 **Consequência.** O painel mostra "melhorou", "piorou", "sem diferença detectável" ou "confundido com clima" sem depender de análise manual. A estatística é simples de propósito: média de deltas por vaca e diferença em diferenças. Modelos mais elaborados só depois de haver dados reais.
+
+## D13 · Exportar em padrão aberto desde o piloto
+
+**Contexto.** Falta de integração é uma das três barreiras de adoção citadas por produtores brasileiros. Dados presos num sistema só não ajudam técnico, laticínio nem programa de melhoramento.
+
+**Decisão.**
+- Exportação em ICAR ADE 1.5, validada contra os esquemas oficiais em cada teste.
+- CSV de controle leiteiro com leiautes configuráveis por sistema de destino.
+- Identificadores conforme o guia do padrão: `composite.withinherdid` para animais sem esquema nacional, SISBOV como alternativo.
+- Método de medição declarado como equipamento não aprovado pela ICAR, que é a verdade do piloto.
+- Toda saída de dados da fazenda depende de autorização do produtor, por parceiro.
+
+**Consequência.** Qualquer parceiro que fale ADE lê os dados sem código novo. O GisLeite e o IDEAGRI recebem o controle leiteiro diário. O produtor é dono do dado e decide quem recebe.

@@ -45,14 +45,19 @@ create table fazenda (
   hora_corte_tarde time not null default '12:00',
   hora_corte_noite time,                       -- nulo: fazenda com duas ordenhas
   pin_hash         text,                       -- bcrypt do PIN do painel
+  codigo           text,                       -- código curto da fazenda, usado nos identificadores exportados
+  ade_location_scheme text,                    -- esquema oficial do local, quando existir (ex.: inscrição estadual)
+  ade_location_id  text,
   criado_em        timestamptz not null default now(),
-  check (hora_corte_noite is null or hora_corte_noite > hora_corte_tarde)
+  check (hora_corte_noite is null or hora_corte_noite > hora_corte_tarde),
+  check ((ade_location_scheme is null) = (ade_location_id is null))
 );
 
 create table animal (
   id                  uuid primary key default gen_random_uuid(),
   fazenda_id          uuid not null references fazenda,
   brinco              text not null,
+  sisbov              text,                     -- identificação oficial, quando houver
   nome                text,
   raca                text,
   nascimento          date,
@@ -1150,7 +1155,11 @@ grant select on animal, lactacao, ausencia, sessao, ordenha, parcial,
                 lote, lote_animal, mudanca_manejo, ambiente to scara_operador;
 grant select (id, fazenda_id, numero, nome, limite_balde_g, tara_referencia_g, criado_em)
   on posto to scara_operador;
-grant select (id, nome, municipio, fuso, densidade_kg_l, hora_corte_tarde, hora_corte_noite, criado_em)
+grant select (id, nome, municipio, fuso, densidade_kg_l, hora_corte_tarde, hora_corte_noite,
+              codigo, ade_location_scheme, ade_location_id, criado_em)
+  on fazenda to scara_operador;
+grant update (nome, municipio, densidade_kg_l, hora_corte_tarde, hora_corte_noite,
+              codigo, ade_location_scheme, ade_location_id)
   on fazenda to scara_operador;
 grant insert, update on animal, lactacao, ausencia, medida_racao, racao_programada,
                         racao_fornecida, ocorrencia, intervencao, coleta_tanque,

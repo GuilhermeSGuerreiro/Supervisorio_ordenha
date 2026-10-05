@@ -1,0 +1,71 @@
+{
+  "_comentario": "Leiautes de CSV para sistemas de gestão. Cada coluna aponta para um campo de v_exportacao_controle_leiteiro ou v_exportacao_animais. Ajuste os cabeçalhos ao modelo baixado do sistema de destino sem mexer no código.",
+  "controle_leiteiro": {
+    "ideagri": {
+      "descricao": "Modelo 'Importar controles leiteiros a partir de planilhas' do IDEAGRI, identificação por número do animal. Conferir com a planilha modelo da sua instalação, pois ela muda com a opção 'Controle leiteiro detalhado'.",
+      "separador": ";",
+      "decimal": ",",
+      "data": "%d/%m/%Y",
+      "colunas": [
+        {"cabecalho": "Número",      "campo": "numero"},
+        {"cabecalho": "Data",        "campo": "data"},
+        {"cabecalho": "1ª ordenha",  "campo": "ordenha_1_kg"},
+        {"cabecalho": "2ª ordenha",  "campo": "ordenha_2_kg"},
+        {"cabecalho": "3ª ordenha",  "campo": "ordenha_3_kg"}
+      ]
+    },
+    "gisleite": {
+      "descricao": "GisLeite, Embrapa Gado de Leite. O modelo oficial é baixado na tela de controle leiteiro do GisLeite Web. Este leiaute é um ponto de partida: abra o modelo, copie os cabeçalhos para aqui e ajuste a ordem.",
+      "a_confirmar": true,
+      "separador": ";",
+      "decimal": ",",
+      "data": "%d/%m/%Y",
+      "colunas": [
+        {"cabecalho": "Animal",         "campo": "numero"},
+        {"cabecalho": "Data",           "campo": "data"},
+        {"cabecalho": "Leite manhã",    "campo": "ordenha_1_kg"},
+        {"cabecalho": "Leite tarde",    "campo": "ordenha_2_kg"},
+        {"cabecalho": "Leite noite",    "campo": "ordenha_3_kg"},
+        {"cabecalho": "Total",          "campo": "total_kg"}
+      ]
+    },
+    "generico": {
+      "descricao": "Todas as colunas, separador vírgula, ponto decimal, data ISO. Para planilhas e análise.",
+      "separador": ",",
+      "decimal": ".",
+      "data": "%Y-%m-%d",
+      "colunas": [
+        {"cabecalho": "numero",            "campo": "numero"},
+        {"cabecalho": "brinco_eletronico", "campo": "brinco_eletronico"},
+        {"cabecalho": "nome",              "campo": "nome"},
+        {"cabecalho": "data",              "campo": "data"},
+        {"cabecalho": "ordenha_1_kg",      "campo": "ordenha_1_kg"},
+        {"cabecalho": "ordenha_2_kg",      "campo": "ordenha_2_kg"},
+        {"cabecalho": "ordenha_3_kg",      "campo": "ordenha_3_kg"},
+        {"cabecalho": "total_kg",          "campo": "total_kg"},
+        {"cabecalho": "total_l",           "campo": "total_l"},
+        {"cabecalho": "lote",              "campo": "lote"},
+        {"cabecalho": "ordenhas",          "campo": "ordenhas"}
+      ]
+    }
+  },
+  "animais": {
+    "generico": {
+      "descricao": "Cadastro de animais para conferência ou importação.",
+      "separador": ",",
+      "decimal": ".",
+      "data": "%Y-%m-%d",
+      "colunas": [
+        {"cabecalho": "numero",            "campo": "numero"},
+        {"cabecalho": "brinco_eletronico", "campo": "brinco_eletronico"},
+        {"cabecalho": "nome",              "campo": "nome"},
+        {"cabecalho": "raca",              "campo": "raca"},
+        {"cabecalho": "nascimento",        "campo": "nascimento"},
+        {"cabecalho": "ultimo_parto",      "campo": "ultimo_parto"},
+        {"cabecalho": "numero_de_partos",  "campo": "numero_de_partos"},
+        {"cabecalho": "situacao",          "campo": "situacao"},
+        {"cabecalho": "lote",              "campo": "lote"}
+      ]
+    }
+  }
+}
