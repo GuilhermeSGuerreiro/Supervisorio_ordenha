@@ -1,0 +1,20 @@
+# PlatformIO
+firmware/**/.pio/
+firmware/**/.vscode/
+firmware/**/platformio_secrets.ini
+
+# Node / Python (servidor)
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+
+# Ambiente
+.env
+.env.*
+!.env.example
+
+# Sistema
+.DS_Store
+Thumbs.db
+*.log

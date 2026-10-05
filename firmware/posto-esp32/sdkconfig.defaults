@@ -1,0 +1,24 @@
+# Valores padrão do projeto. O arquivo sdkconfig é gerado no build e não é versionado.
+
+CONFIG_IDF_TARGET="esp32"
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+CONFIG_FREERTOS_HZ=1000
+
+# Medição no núcleo 1, rede e Wi-Fi no núcleo 0.
+CONFIG_ESP_WIFI_TASK_PINNED_TO_CORE_0=y
+
+# Reinicia sozinho se uma tarefa travar.
+CONFIG_ESP_TASK_WDT_EN=y
+CONFIG_ESP_TASK_WDT_PANIC=y
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=10
+
+# Reinício por queda de tensão (fonte ruim, cabo longo).
+CONFIG_ESP_BROWNOUT_DET=y
+CONFIG_ESP_BROWNOUT_DET_LVL_SEL_5=y
+
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y

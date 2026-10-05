@@ -1,0 +1,6 @@
+# Nome,   Tipo, Subtipo,   Offset,  Tamanho
+nvs,      data, nvs,       0x9000,  0x6000
+phy_init, data, phy,       0xf000,  0x1000
+factory,  app,  factory,   0x10000, 0x180000
+# Fila de eventos (main/fila_nucleo.h): 256 KB = 4096 eventos.
+fila,     data, undefined, ,        0x40000

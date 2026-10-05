@@ -1,0 +1,16 @@
+# PostgREST do servidor local. Copiar para postgrest.conf e preencher.
+# Nunca versionar o arquivo preenchido.
+
+db-uri = "postgres://scara_api:TROCAR@127.0.0.1:5432/scara"
+db-schemas = "scara"
+db-anon-role = "scara_anon"
+
+# Mesmo valor gravado em scara.config_segura (chave jwt_segredo). Mínimo de 32 caracteres.
+jwt-secret = "TROCAR_POR_SEGREDO_LONGO"
+
+# Escuta só na rede local. Trocar pelo IP fixo do servidor na LAN.
+server-host = "192.168.0.10"
+server-port = 3000
+
+# Limita o tamanho de respostas sem filtro.
+db-max-rows = 5000

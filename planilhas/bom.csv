@@ -1,0 +1,38 @@
+etapa,grupo,item,especificacao,qtd,preco_unit_min,preco_unit_max,condicao,observacao
+E1,posto,Célula de carga single point,"150 kg (200 kg aceitável), IP67, plataforma máxima declarada >= 450x450 mm",1,120,350,obrigatorio,Não cortar o cabo original; se for 6 fios ligar sense em excitação no HX711
+E1,posto,Módulo HX711,"Placa com VCC e VDD separados de preferência; 10 amostras/s de fábrica",2,8,20,obrigatorio,Uma unidade de reserva
+E1,posto,ESP32 com antena externa,"ESP32-WROOM-32U DevKit + antena 2,4 GHz com pigtail U.FL",1,55,100,obrigatorio,Antena fora da caixa
+E1,posto,Conversor 12 V para 5 V,"Buck síncrono, 2 A, entrada até 24 V",1,8,25,obrigatorio,
+E1,posto,Caixa de proteção,"PC ou ABS, IP66, cerca de 150x110x70 mm, tampa com parafusos",1,45,110,obrigatorio,Suporta lavagem com mangueira
+E1,posto,Prensa-cabos e respiro,"4 prensa-cabos PG7/PG9 + 1 respiro com membrana",1,20,50,obrigatorio,Respiro evita condensação dentro da caixa
+E1,posto,Conector aviação,"GX16 4 vias, par macho e fêmea",2,12,25,obrigatorio,Um para a célula e um para alimentação; permite trocar o posto inteiro
+E1,posto,Botão com LED,"Metálico IP67, 16 a 19 mm, LED bicolor ou RGB",1,20,55,obrigatorio,
+E1,posto,Placa e proteção,"Placa perfurada, bornes, porta-fusível com fusível 1 A",1,15,40,obrigatorio,
+E1,posto,Plataforma,"Chapa inox 304 ou alumínio, cerca de 450x450 mm, corte e dobra",1,150,400,obrigatorio,
+E1,posto,Base e batente,"Base rígida, pés reguláveis, batente mecânico de sobrecarga",1,60,150,obrigatorio,Batente 1 a 2 mm abaixo da plataforma
+E1,posto,Suporte de mangueiras,"Ponto fixo para vácuo e tubo longo + gancho do conjunto, fora da plataforma",1,30,80,obrigatorio,
+E1,infra,Fonte 12 V,"Chaveada 12 V 5 A em caixa fechada, local seco",1,60,150,obrigatorio,Dimensionada para os 3 postos
+E1,infra,Cabo de distribuição,"PP 2x1,0 mm², cerca de 30 m",1,60,150,obrigatorio,
+E1,infra,Proteção do circuito,"Disjuntor + DR 30 mA",1,80,200,condicional,Só se o circuito não tiver
+E1,infra,Ponto de acesso Wi-Fi,"AP ou roteador WPA2/WPA3 na sala de ordenha",1,120,300,condicional,Só se o sinal não chegar à sala
+E1,infra,Armazenamento do servidor,"SSD USB 120 a 240 GB, ou cartão de alta durabilidade",1,90,180,obrigatorio,Evita corrupção do banco em queda de energia
+E1,infra,Módulo de relógio,"DS3231 com bateria, para o Raspberry",1,15,40,condicional,Só se a fazenda não tiver internet
+E1,infra,Pendrive de cópia,"32 GB",1,25,50,obrigatorio,Cópia diária automática
+E1,infra,Suporte do celular,"Suporte de parede à prova d'água + carregador",1,40,100,obrigatorio,
+E1,infra,Nobreak,"600 VA para servidor e AP",1,300,500,condicional,Obrigatório se houver quedas frequentes de energia
+E1,validacao,Balança de bancada de referência,"30 kg, divisão de 5 g ou menor, com verificação Inmetro em dia",1,200,450,obrigatorio,Serve de referência na validação e para calibrar a medida de ração
+E1,validacao,Galões e recipientes,"Galões de 5 L e 20 L com tampa",1,40,100,obrigatorio,Massas de teste com água pesada na referência
+E1,validacao,Balança de plataforma,"150 a 300 kg, para conferir o balde inteiro",1,0,150,condicional,Empréstimo ou aluguel; só para a fase 3 da validação
+E2,posto,Célula de carga single point,"Igual ao posto 1",2,120,350,obrigatorio,
+E2,posto,Módulo HX711,"Igual ao posto 1",2,8,20,obrigatorio,
+E2,posto,ESP32 com antena externa,"Igual ao posto 1",2,55,100,obrigatorio,
+E2,posto,Conversor 12 V para 5 V,"Igual ao posto 1",2,8,25,obrigatorio,
+E2,posto,Caixa de proteção,"Igual ao posto 1",2,45,110,obrigatorio,
+E2,posto,Prensa-cabos e respiro,"Igual ao posto 1",2,20,50,obrigatorio,
+E2,posto,Conector aviação,"Igual ao posto 1",4,12,25,obrigatorio,
+E2,posto,Botão com LED,"Igual ao posto 1",2,20,55,obrigatorio,
+E2,posto,Placa e proteção,"Igual ao posto 1",2,15,40,obrigatorio,
+E2,posto,Plataforma,"Igual ao posto 1",2,150,400,obrigatorio,
+E2,posto,Base e batente,"Igual ao posto 1",2,60,150,obrigatorio,
+E2,posto,Suporte de mangueiras,"Igual ao posto 1",2,30,80,obrigatorio,
+E2,infra,Cabo de distribuição,"PP 2x1,0 mm², cerca de 30 m adicionais",1,60,150,obrigatorio,
