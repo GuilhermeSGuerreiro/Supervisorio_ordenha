@@ -16,7 +16,7 @@ Preços são faixas estimadas em reais, sem cotação fechada, com valores de ou
 <!-- bom:inicio -->
 | Etapa | Grupo | Mínimo | Máx. obrig. | Máx. total |
 |---|---|---|---|---|
-| E1 | infra | R$ 275 | R$ 630 | R$ 1.670 |
+| E1 | infra | R$ 275 | R$ 630 | R$ 1.750 |
 | E1 | posto | R$ 563 | R$ 1.450 | R$ 1.450 |
 | E1 | validacao | R$ 240 | R$ 550 | R$ 700 |
 | E2 | infra | R$ 60 | R$ 150 | R$ 150 |
@@ -26,9 +26,9 @@ Com reserva de 20%:
 
 | Etapa | Mínimo | Máx. obrig. | Máx. total |
 |---|---|---|---|
-| E1 | R$ 1.294 | R$ 3.156 | R$ 4.584 |
+| E1 | R$ 1.294 | R$ 3.156 | R$ 4.680 |
 | E2 | R$ 1.404 | R$ 3.612 | R$ 3.612 |
-| **Total** | R$ 2.698 | R$ 6.768 | R$ 8.196 |
+| **Total** | R$ 2.698 | R$ 6.768 | R$ 8.292 |
 <!-- bom:fim -->
 
 ## O que mudou em relação ao plano inicial

@@ -297,5 +297,57 @@ do $$ begin
   assert (select postos_l from v_conciliacao) = 15.5, 'conciliação errada';
 end $$;
 
+-- 14. Mudança de manejo escalonada por lote -------------------------------------
+-- Lote A recebe ração nova em 23/10. V01 (lote A) sobe 1 kg; V02 (controle) fica igual.
+-- Clima igual nas duas janelas. Adaptação 0 e janela de 3 dias para o teste ser curto.
+
+insert into lote (id, fazenda_id, nome) values ('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-000000000001', 'A');
+insert into lote_animal values ('00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000c1', '2026-10-01', null);
+
+insert into mudanca_manejo (id, fazenda_id, tipo, escopo, lote_id, inicio, adaptacao_dias, janela_dias, titulo, descricao, hipotese, custo_dia)
+values ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-000000000001', 'racao', 'lote',
+        '00000000-0000-0000-0000-0000000000c1', '2026-10-23', 0, 3, 'Concentrado 20% PB no lote A',
+        'Troca do concentrado de 16% para 20% de proteína', '+0,5 kg por vaca em 3 dias', 10.00);
+
+do $$
+declare
+  chave text := current_setting('teste.chave');
+  dia   date;
+  seq_  int := 200;
+  v1    int;
+begin
+  for i in 0..5 loop
+    dia := date '2026-10-20' + i;
+    v1 := case when dia >= '2026-10-23' then 8000 else 7000 end;
+    insert into ambiente values ('00000000-0000-0000-0000-000000000001', dia + time '14:00', 'manual', 32.0, 50.0, null);
+    -- V01, posto 1
+    perform selecionar_animal('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1');
+    perform ingerir(chave, 4, 0, jsonb_build_array(
+      pg_temp.ev(4, seq_,     'balde_retirado', 0,          (dia + time '05:00')::timestamptz),
+      pg_temp.ev(4, seq_ + 1, 'balde_colocado', 12000,      (dia + time '05:01')::timestamptz),
+      pg_temp.ev(4, seq_ + 2, 'inicio',         12000,      (dia + time '05:02')::timestamptz),
+      pg_temp.ev(4, seq_ + 3, 'fim',            12000 + v1, (dia + time '05:10')::timestamptz)));
+    -- V02, mesmo posto, logo depois
+    perform selecionar_animal('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b2');
+    perform ingerir(chave, 4, 0, jsonb_build_array(
+      pg_temp.ev(4, seq_ + 4, 'inicio', 12000 + v1,        (dia + time '05:12')::timestamptz),
+      pg_temp.ev(4, seq_ + 5, 'fim',    12000 + v1 + 7000, (dia + time '05:20')::timestamptz)));
+    seq_ := seq_ + 6;
+  end loop;
+end $$;
+
+do $$
+declare r record;
+begin
+  select * into r from v_efeito_mudanca where id = '00000000-0000-0000-0000-0000000000d1';
+  assert r.desenho = 'escalonado por lote', 'desenho errado';
+  assert r.n_tratadas = 1 and r.n_controle = 1, format('contagem errada: %s tratadas, %s controle', r.n_tratadas, r.n_controle);
+  assert r.efeito_g_vaca_dia = 1000, format('efeito devia ser 1000, veio %s', r.efeito_g_vaca_dia);
+  assert r.itu_base = r.itu_efeito, 'ITU devia ser igual nas duas janelas';
+  assert r.veredicto in ('aguardando a janela', 'vacas insuficientes'), format('veredicto inesperado: %s', r.veredicto);
+  assert (select itu(32.0, 50.0)) between 80 and 82, 'ITU de 32 °C e 50% devia ficar perto de 81';
+  assert not exists (select 1 from v_mudanca_sobreposta), 'não devia haver sobreposição';
+end $$;
+
 \echo 'teste.sql: todos os cenários passaram'
 rollback;

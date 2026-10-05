@@ -8,6 +8,14 @@
 - Piloto na fazenda de um familiar, em Morada Nova-CE, financiado por etapa.
 - Objetivo posterior: produto para produtores de Morada Nova e região. O município é o maior produtor de leite do Ceará, com 117,3 milhões de litros em 2025 segundo a Pesquisa da Pecuária Municipal do IBGE.
 
+## Ideia central
+
+O supervisório é o instrumento que mede o efeito de cada mudança de manejo.
+Troca de ração, realocação de vacas, sombra, horário de ordenha: cada mudança é registrada com data e alvo, e o sistema mostra se a produção melhorou, piorou ou não mudou, descontando estágio de lactação e calor.
+O método está em `docs/08-mensuracao-manejo.md`.
+
+A prova de conceito começa só com o supervisório. Nenhuma mudança é proposta antes de existir linha de base.
+
 ## Perguntas que o MVP responde
 
 | Pergunta | Dado que responde |
@@ -16,6 +24,7 @@
 | Quanto concentrado foi fornecido? | Medidas lançadas convertidas para kg, marcadas como conferidas ou estimadas |
 | Qual animal mudou e merece atenção? | Queda em relação à média da própria vaca no mesmo turno, ocorrências |
 | Como produção e gasto evoluem? | Série diária de leite e concentrado por vaca e do rebanho, kg de leite por kg de concentrado |
+| A mudança de manejo funcionou? | Efeito em kg por vaca por dia com intervalo de confiança, comparado com lote de controle quando houver, com ITU das duas janelas |
 
 ## Dentro do MVP
 
@@ -26,6 +35,9 @@
 - Registro de ordenhas por parciais, com destino do leite.
 - Ração programada e fornecida, com medida calibrada.
 - Ocorrências e intervenções.
+- Lotes com histórico de alocação.
+- Registro de mudanças de manejo e cálculo do efeito.
+- Clima diário pela estação do INMET de Morada Nova, com sensor local condicional.
 - Conciliação com o tanque ou ticket do laticínio.
 - Exportação em CSV e cópia de segurança automática.
 

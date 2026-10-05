@@ -17,6 +17,7 @@ E1,infra,Proteção do circuito,"Disjuntor + DR 30 mA",1,80,200,condicional,Só 
 E1,infra,Ponto de acesso Wi-Fi,"AP ou roteador WPA2/WPA3 na sala de ordenha",1,120,300,condicional,Só se o sinal não chegar à sala
 E1,infra,Armazenamento do servidor,"SSD USB 120 a 240 GB, ou cartão de alta durabilidade",1,90,180,obrigatorio,Evita corrupção do banco em queda de energia
 E1,infra,Módulo de relógio,"DS3231 com bateria, para o Raspberry",1,15,40,condicional,Só se a fazenda não tiver internet
+E1,infra,Sensor de temperatura e umidade,"SHT31 ou SHT40 com cabo e filtro, ligado ao posto 1 ou em nó próprio",1,30,80,condicional,Necessário para avaliar mudança de ambiente; a estação do INMET fica longe do curral
 E1,infra,Pendrive de cópia,"32 GB",1,25,50,obrigatorio,Cópia diária automática
 E1,infra,Suporte do celular,"Suporte de parede à prova d'água + carregador",1,40,100,obrigatorio,
 E1,infra,Nobreak,"600 VA para servidor e AP",1,300,500,condicional,Obrigatório se houver quedas frequentes de energia

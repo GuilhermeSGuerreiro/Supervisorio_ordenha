@@ -45,6 +45,9 @@ Em casa:
 ### Meses 3–4 · Validar o manejo
 
 - Completar 30 dias com 95% de registros válidos.
+- Recalcular a tabela de detecção de `docs/08-mensuracao-manejo.md` com a variabilidade real.
+- Primeira mudança de manejo com desenho escalonado por lote, escolhida com o operador.
+- Segunda mudança, de outra categoria, no mês 4.
 - Relatórios semanais, alertas e intervenções registradas.
 - Revisão semanal com o operador.
 - Sincronização opcional com a nuvem, só de saída.
@@ -52,7 +55,8 @@ Em casa:
 **Avança se:**
 - meta de 95% cumprida;
 - pelo menos 4 revisões semanais registradas;
-- pelo menos uma intervenção nascida de um alerta, registrada e acompanhada.
+- pelo menos uma intervenção nascida de um alerta, registrada e acompanhada;
+- pelo menos uma mudança de manejo com janela completa e veredicto emitido pelo sistema.
 
 ### Mês 5 · Visitas e documentação
 

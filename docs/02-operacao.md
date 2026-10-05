@@ -152,6 +152,16 @@ Uma ordenha é válida quando:
 - Sem lançamento, o fornecido é igual ao programado e fica marcado como **estimado**.
 - Campo opcional de sobra no cocho, em medidas, para quando houver sobra visível.
 
+## Lotes e mudanças de manejo
+
+- Toda vaca pertence a um lote. Mover de lote é um registro com data, feito no painel no dia da mudança.
+- Toda mudança de manejo é registrada no dia em que começa: tipo, alcance, descrição, hipótese e dias de adaptação.
+- Quando possível, a mudança começa em um lote e o outro fica como controle por uma janela. Depois o controle recebe também.
+- O painel avisa quando duas mudanças ativas atingem as mesmas vacas.
+- O resultado da mudança é lido na revisão semanal, nunca antes de a janela terminar.
+
+Método completo em `docs/08-mensuracao-manejo.md`.
+
 ## Destino do leite
 
 Cada ordenha tem destino: tanque, descarte, bezerro ou casa.

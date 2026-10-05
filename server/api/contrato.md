@@ -102,6 +102,15 @@ Se passar, a flash do posto foi apagada: o posto ajusta os contadores e reinicia
 Enviado a cada 5 s com Wi-Fi conectado. Não é guardado como histórico, só o último valor.
 O cartão do posto fica offline se o último estado tiver mais de 20 s.
 
+### Enviar temperatura e umidade
+
+```
+POST /rpc/ingerir_ambiente
+{ "p_chave": "...", "p_temperatura": 31.5, "p_umidade": 48.0 }
+```
+
+Só para posto com sensor de ambiente. Uma leitura a cada 10 minutos basta. O servidor calcula o ITU.
+
 ## Painel para servidor
 
 ### Login
@@ -132,6 +141,11 @@ Authorization: Bearer <token>
 | Ração | `GET /v_racao?data=gte.2026-10-01` |
 | Conciliação | `GET /v_conciliacao?order=coletado_em.desc` |
 | Animais | `GET /v_animal?order=ordem_entrada` |
+| Produção diária por vaca, com lote, dias em lactação e ITU | `GET /v_producao_dia?data=gte.2026-10-01` |
+| Clima por dia | `GET /v_ambiente_dia?order=data.desc` |
+| Efeito de cada mudança de manejo | `GET /v_efeito_mudanca?order=inicio.desc` |
+| Efeito por vaca de uma mudança | `GET /v_efeito_mudanca_animal?mudanca_id=eq.<id>` |
+| Mudanças que se sobrepõem | `GET /v_mudanca_sobreposta` |
 
 Exportação em CSV: qualquer leitura acima com o cabeçalho `Accept: text/csv`.
 
@@ -148,4 +162,8 @@ Exportação em CSV: qualquer leitura acima com o cabeçalho `Accept: text/csv`.
 | Registrar intervenção | `POST /intervencao` |
 | Cadastrar animal, parto, secagem, ausência | `POST` ou `PATCH` em `animal`, `lactacao`, `ausencia` |
 | Registrar coleta do tanque | `POST /coleta_tanque` |
+| Criar lote e mover vaca de lote | `POST /lote`, `POST /lote_animal` e `PATCH /lote_animal?animal_id=eq.<id>&ate=is.null` com `ate` |
+| Registrar mudança de manejo | `POST /mudanca_manejo` |
+| Encerrar mudança | `PATCH /mudanca_manejo?id=eq.<id>` com `fim` |
+| Lançar clima manual ou do INMET | `POST /ambiente` com `origem` igual a `manual` ou `inmet` |
 | Gerar nova chave de posto | `POST /rpc/nova_chave_posto` com `p_posto`. A chave aparece só nesta resposta |

@@ -280,6 +280,71 @@ create table coleta_tanque (
   unique (fazenda_id, coletado_em)
 );
 
+
+-- ---------------------------------------------------------------------------
+-- Lotes, mudanças de manejo e ambiente (docs/08-mensuracao-manejo.md)
+-- ---------------------------------------------------------------------------
+
+create table lote (
+  id         uuid primary key default gen_random_uuid(),
+  fazenda_id uuid not null references fazenda,
+  nome       text not null,
+  descricao  text,
+  criado_em  timestamptz not null default now(),
+  unique (fazenda_id, nome)
+);
+
+-- Histórico de alocação. Uma vaca está em no máximo um lote por vez.
+create table lote_animal (
+  animal_id uuid not null references animal,
+  lote_id   uuid not null references lote,
+  desde     date not null,
+  ate       date,
+  primary key (animal_id, desde),
+  check (ate is null or ate >= desde)
+);
+create unique index lote_animal_um_aberto on lote_animal (animal_id) where ate is null;
+
+create type tipo_mudanca as enum ('racao', 'volumoso', 'alocacao', 'ambiente', 'ordenha', 'sanitario', 'outro');
+create type escopo_mudanca as enum ('fazenda', 'lote', 'animal');
+
+create table mudanca_manejo (
+  id             uuid primary key default gen_random_uuid(),
+  fazenda_id     uuid not null references fazenda,
+  tipo           tipo_mudanca not null,
+  escopo         escopo_mudanca not null,
+  lote_id        uuid references lote,
+  animal_id      uuid references animal,
+  inicio         date not null,
+  fim            date,
+  adaptacao_dias smallint not null default 7 check (adaptacao_dias between 0 and 60),
+  janela_dias    smallint not null default 14 check (janela_dias between 3 and 90),
+  titulo         text not null,
+  descricao      text not null,
+  hipotese       text not null,
+  custo_dia      numeric(10,2) check (custo_dia >= 0),
+  registrado_em  timestamptz not null default now(),
+  check (fim is null or fim >= inicio),
+  check ((escopo = 'lote') = (lote_id is not null)),
+  check ((escopo = 'animal') = (animal_id is not null))
+);
+
+create table ambiente (
+  fazenda_id    uuid not null references fazenda,
+  medido_em     timestamptz not null,
+  origem        text not null check (origem in ('posto', 'inmet', 'manual')),
+  temperatura_c numeric(4,1) not null check (temperatura_c between -10 and 60),
+  umidade_pct   numeric(4,1) not null check (umidade_pct between 0 and 100),
+  local         text,
+  primary key (fazenda_id, medido_em, origem)
+);
+
+-- Índice de temperatura e umidade de Thom, como usado em bovinos de leite.
+create function itu(t numeric, ur numeric) returns numeric
+language sql immutable as $$
+  select round((1.8 * t + 32) - (0.55 - 0.0055 * ur) * (1.8 * t - 26), 1)
+$$;
+
 -- ---------------------------------------------------------------------------
 -- Segurança do painel
 -- ---------------------------------------------------------------------------
@@ -610,6 +675,18 @@ begin
             from evento_posto where posto_id = posto_);
 end $$;
 
+-- Leitura de temperatura e umidade do sensor do posto, quando houver.
+create function ingerir_ambiente(p_chave text, p_temperatura numeric, p_umidade numeric) returns void
+language plpgsql security definer set search_path = scara, public, extensions, pg_temp as $$
+declare
+  posto_ uuid := _posto_por_chave(p_chave);
+begin
+  insert into ambiente (fazenda_id, medido_em, origem, temperatura_c, umidade_pct, local)
+  select p.fazenda_id, date_trunc('minute', now()), 'posto', p_temperatura, p_umidade, 'posto ' || p.numero
+    from posto p where p.id = posto_
+  on conflict do nothing;
+end $$;
+
 -- Gera uma chave nova para o posto. A chave em texto só aparece nesta resposta (D9).
 create function nova_chave_posto(p_posto uuid) returns text
 language plpgsql security definer set search_path = scara, public, extensions, pg_temp as $$
@@ -873,6 +950,183 @@ select 'balde', bc.id::text, (e.ocorrido_em at time zone f.fuso)::date, null,
  where not bc.anulado and p.tara_referencia_g is not null
    and abs(bc.tara_g - p.tara_referencia_g) > 300;
 
+
+-- ---------------------------------------------------------------------------
+-- Análise de mudanças de manejo (docs/08-mensuracao-manejo.md)
+-- ---------------------------------------------------------------------------
+
+create view v_ambiente_dia as
+select
+  a.fazenda_id,
+  (a.medido_em at time zone f.fuso)::date as data,
+  round(avg(itu(a.temperatura_c, a.umidade_pct)), 1) as itu_medio,
+  max(itu(a.temperatura_c, a.umidade_pct))           as itu_max,
+  count(*) filter (where itu(a.temperatura_c, a.umidade_pct) > 72) as horas_itu_acima_72,
+  round(avg(a.temperatura_c), 1) as temperatura_media,
+  max(a.temperatura_c)           as temperatura_max
+from ambiente a
+join fazenda f on f.id = a.fazenda_id
+group by a.fazenda_id, (a.medido_em at time zone f.fuso)::date;
+
+-- Produção diária por vaca, com dias em lactação, lote do dia e clima.
+create view v_producao_dia as
+select
+  vo.fazenda_id,
+  vo.animal_id,
+  vo.brinco,
+  vo.data,
+  sum(vo.producao_g)::int                as producao_g,
+  count(*)                               as ordenhas_validas,
+  vo.data - l.data_parto                 as del,
+  la.lote_id,
+  amb.itu_medio,
+  amb.itu_max
+from v_ordenha vo
+join lactacao l on l.animal_id = vo.animal_id
+               and l.data_parto <= vo.data
+               and (l.data_secagem is null or l.data_secagem > vo.data)
+left join lote_animal la on la.animal_id = vo.animal_id
+                        and la.desde <= vo.data and (la.ate is null or la.ate > vo.data)
+left join v_ambiente_dia amb on amb.fazenda_id = vo.fazenda_id and amb.data = vo.data
+where vo.valida
+group by vo.fazenda_id, vo.animal_id, vo.brinco, vo.data, l.data_parto, la.lote_id, amb.itu_medio, amb.itu_max;
+
+-- Vacas atingidas por cada mudança, na data de início.
+create view v_mudanca_alvo as
+select m.id as mudanca_id, a.id as animal_id, true as tratado
+  from mudanca_manejo m
+  join animal a on a.fazenda_id = m.fazenda_id
+  join lactacao l on l.animal_id = a.id and l.data_parto <= m.inicio
+                 and (l.data_secagem is null or l.data_secagem > m.inicio)
+ where (a.baixa_em is null or a.baixa_em > m.inicio)
+   and (m.escopo = 'fazenda'
+        or (m.escopo = 'animal' and a.id = m.animal_id)
+        or (m.escopo = 'lote' and exists (
+              select 1 from lote_animal la
+               where la.animal_id = a.id and la.lote_id = m.lote_id
+                 and la.desde <= m.inicio and (la.ate is null or la.ate > m.inicio))))
+union all
+-- Controle: vacas em lactação da mesma fazenda fora do lote tratado.
+select m.id, a.id, false
+  from mudanca_manejo m
+  join animal a on a.fazenda_id = m.fazenda_id
+  join lactacao l on l.animal_id = a.id and l.data_parto <= m.inicio
+                 and (l.data_secagem is null or l.data_secagem > m.inicio)
+ where m.escopo = 'lote'
+   and (a.baixa_em is null or a.baixa_em > m.inicio)
+   and not exists (
+         select 1 from lote_animal la
+          where la.animal_id = a.id and la.lote_id = m.lote_id
+            and la.desde <= m.inicio and (la.ate is null or la.ate > m.inicio));
+
+-- Efeito por vaca: média diária na janela de efeito menos média na linha de base.
+-- Uma vaca só entra se tiver dados em pelo menos 70% dos dias de cada janela.
+create view v_efeito_mudanca_animal as
+with janelas as (
+  select m.*,
+         m.inicio - m.janela_dias                         as base_ini,
+         m.inicio - 1                                     as base_fim,
+         m.inicio + m.adaptacao_dias                      as efeito_ini,
+         least(coalesce(m.fim, '9999-12-31'::date),
+               m.inicio + m.adaptacao_dias + m.janela_dias - 1) as efeito_fim
+    from mudanca_manejo m
+),
+por_vaca as (
+  select j.id as mudanca_id, alvo.animal_id, alvo.tratado,
+         j.base_ini, j.base_fim, j.efeito_ini, j.efeito_fim,
+         avg(pd.producao_g) filter (where pd.data between j.base_ini and j.base_fim)     as base_g,
+         count(*)           filter (where pd.data between j.base_ini and j.base_fim)     as base_dias,
+         avg(pd.producao_g) filter (where pd.data between j.efeito_ini and j.efeito_fim) as efeito_g,
+         count(*)           filter (where pd.data between j.efeito_ini and j.efeito_fim) as efeito_dias,
+         avg(pd.itu_medio)  filter (where pd.data between j.base_ini and j.base_fim)     as itu_base,
+         avg(pd.itu_medio)  filter (where pd.data between j.efeito_ini and j.efeito_fim) as itu_efeito,
+         avg(pd.del)        filter (where pd.data between j.base_ini and j.base_fim)     as del_base
+    from janelas j
+    join v_mudanca_alvo alvo on alvo.mudanca_id = j.id
+    left join v_producao_dia pd on pd.animal_id = alvo.animal_id
+                               and pd.data between j.base_ini and j.efeito_fim
+   group by j.id, alvo.animal_id, alvo.tratado, j.base_ini, j.base_fim, j.efeito_ini, j.efeito_fim
+)
+select
+  mudanca_id, animal_id, tratado,
+  round(base_g)::int   as base_g,
+  round(efeito_g)::int as efeito_g,
+  round(efeito_g - base_g)::int as delta_g,
+  base_dias, efeito_dias,
+  round(itu_base, 1)   as itu_base,
+  round(itu_efeito, 1) as itu_efeito,
+  round(del_base)::int as del_base,
+  (base_dias   >= ceil(0.7 * (base_fim - base_ini + 1))
+   and efeito_dias >= ceil(0.7 * (efeito_fim - efeito_ini + 1))) as incluida
+from por_vaca;
+
+-- Efeito da mudança. Com lote de controle, usa diferença em diferenças.
+create view v_efeito_mudanca as
+with agg as (
+  select e.mudanca_id,
+         count(*)        filter (where e.tratado and e.incluida)      as n_tratadas,
+         count(*)        filter (where e.tratado and not e.incluida)  as n_tratadas_excluidas,
+         count(*)        filter (where not e.tratado and e.incluida)  as n_controle,
+         avg(e.delta_g)  filter (where e.tratado and e.incluida)      as delta_trat,
+         stddev_samp(e.delta_g) filter (where e.tratado and e.incluida) as sd_trat,
+         avg(e.delta_g)  filter (where not e.tratado and e.incluida)  as delta_ctrl,
+         stddev_samp(e.delta_g) filter (where not e.tratado and e.incluida) as sd_ctrl,
+         avg(e.base_g)   filter (where e.tratado and e.incluida)      as base_trat,
+         avg(e.itu_base)   filter (where e.tratado and e.incluida)    as itu_base,
+         avg(e.itu_efeito) filter (where e.tratado and e.incluida)    as itu_efeito,
+         avg(e.del_base)   filter (where e.tratado and e.incluida)    as del_base
+    from v_efeito_mudanca_animal e
+   group by e.mudanca_id
+),
+calc as (
+  select m.id, m.fazenda_id, m.titulo, m.tipo, m.escopo, m.inicio, m.fim, m.hipotese, m.custo_dia,
+         m.inicio + m.adaptacao_dias + m.janela_dias - 1 as janela_termina_em,
+         case when m.escopo = 'lote' then 'escalonado por lote' else 'antes e depois' end as desenho,
+         a.n_tratadas, a.n_tratadas_excluidas, a.n_controle,
+         a.delta_trat, a.delta_ctrl, a.base_trat, a.itu_base, a.itu_efeito, a.del_base,
+         case when m.escopo = 'lote' and a.n_controle > 0 then a.delta_trat - a.delta_ctrl else a.delta_trat end as efeito_g,
+         -- erro padrão do efeito (duas amostras independentes quando há controle)
+         case when m.escopo = 'lote' and a.n_controle > 1 and a.n_tratadas > 1
+              then sqrt(power(a.sd_trat, 2) / a.n_tratadas + power(a.sd_ctrl, 2) / a.n_controle)
+              when a.n_tratadas > 1 then a.sd_trat / sqrt(a.n_tratadas) end as ep_g
+    from mudanca_manejo m
+    left join agg a on a.mudanca_id = m.id
+)
+select
+  id, fazenda_id, titulo, tipo, escopo, desenho, inicio, fim, janela_termina_em, hipotese,
+  n_tratadas, n_tratadas_excluidas, n_controle,
+  round(base_trat)::int                              as base_g_vaca_dia,
+  round(efeito_g)::int                               as efeito_g_vaca_dia,
+  round(100.0 * efeito_g / nullif(base_trat, 0), 1)  as efeito_pct,
+  round(efeito_g - 1.96 * ep_g)::int                 as ic95_inf_g,
+  round(efeito_g + 1.96 * ep_g)::int                 as ic95_sup_g,
+  round(itu_base, 1)   as itu_base,
+  round(itu_efeito, 1) as itu_efeito,
+  round(del_base)::int as del_medio_base,
+  case when custo_dia > 0 and n_tratadas > 0
+       then round(efeito_g * n_tratadas / 1000.0 / custo_dia, 2) end as kg_leite_por_real_dia,
+  case
+    when janela_termina_em > current_date                      then 'aguardando a janela'
+    when coalesce(n_tratadas, 0) < 2                           then 'vacas insuficientes'
+    when abs(coalesce(itu_efeito, 0) - coalesce(itu_base, 0)) > 3 and escopo <> 'lote' then 'confundido com clima'
+    when ep_g is null                                          then 'sem estimativa'
+    when efeito_g - 1.96 * ep_g > 0                            then 'melhorou'
+    when efeito_g + 1.96 * ep_g < 0                            then 'piorou'
+    else 'sem diferença detectável'
+  end as veredicto
+from calc;
+
+-- Mudanças ativas que atingem as mesmas vacas ao mesmo tempo.
+create view v_mudanca_sobreposta as
+select a.mudanca_id as mudanca_a, b.mudanca_id as mudanca_b, count(*) as vacas_em_comum
+  from v_mudanca_alvo a
+  join v_mudanca_alvo b on b.animal_id = a.animal_id and b.mudanca_id > a.mudanca_id
+  join mudanca_manejo ma on ma.id = a.mudanca_id
+  join mudanca_manejo mb on mb.id = b.mudanca_id
+ where a.tratado and b.tratado
+   and ma.inicio <= coalesce(mb.fim, '9999-12-31') and mb.inicio <= coalesce(ma.fim, '9999-12-31')
+ group by a.mudanca_id, b.mudanca_id;
+
 -- ---------------------------------------------------------------------------
 -- Permissões
 -- ---------------------------------------------------------------------------
@@ -882,20 +1136,25 @@ grant usage on schema scara to scara_anon, scara_operador;
 -- Posto e login: chamados sem token.
 grant execute on function ingerir(text, int, bigint, jsonb) to scara_anon;
 grant execute on function status_posto(text, jsonb) to scara_anon;
+grant execute on function ingerir_ambiente(text, numeric, numeric) to scara_anon;
 grant execute on function entrar(text) to scara_anon;
 
 -- Painel com token.
 grant select on v_ordenha, v_animal, v_uso_sessao, v_alerta_queda, v_racao,
-                v_conciliacao, v_cartao_posto, v_pendencia to scara_operador;
+                v_conciliacao, v_cartao_posto, v_pendencia,
+                v_ambiente_dia, v_producao_dia, v_mudanca_alvo, v_efeito_mudanca_animal,
+                v_efeito_mudanca, v_mudanca_sobreposta to scara_operador;
 grant select on animal, lactacao, ausencia, sessao, ordenha, parcial,
                 balde_ciclo, posto_status, selecao_posto, medida_racao, racao_programada,
-                racao_fornecida, ocorrencia, intervencao, coleta_tanque, evento_posto to scara_operador;
+                racao_fornecida, ocorrencia, intervencao, coleta_tanque, evento_posto,
+                lote, lote_animal, mudanca_manejo, ambiente to scara_operador;
 grant select (id, fazenda_id, numero, nome, limite_balde_g, tara_referencia_g, criado_em)
   on posto to scara_operador;
 grant select (id, nome, municipio, fuso, densidade_kg_l, hora_corte_tarde, hora_corte_noite, criado_em)
   on fazenda to scara_operador;
 grant insert, update on animal, lactacao, ausencia, medida_racao, racao_programada,
-                        racao_fornecida, ocorrencia, intervencao, coleta_tanque to scara_operador;
+                        racao_fornecida, ocorrencia, intervencao, coleta_tanque,
+                        lote, lote_animal, mudanca_manejo, ambiente to scara_operador;
 grant update (destino, observacao) on ordenha to scara_operador;
 grant update (nome, limite_balde_g, tara_referencia_g) on posto to scara_operador;
 grant execute on function selecionar_animal(uuid, uuid), associar_animal(uuid, uuid),
@@ -903,6 +1162,6 @@ grant execute on function selecionar_animal(uuid, uuid), associar_animal(uuid, u
                           definir_pin(uuid, text) to scara_operador;
 -- Funções chamadas pelas visões.
 grant execute on function turno_de(uuid, timestamptz), data_de(uuid, timestamptz),
-                          destino_padrao(uuid, date) to scara_operador;
+                          destino_padrao(uuid, date), itu(numeric, numeric) to scara_operador;
 
 commit;

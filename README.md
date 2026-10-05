@@ -35,6 +35,7 @@ Primeiro compromisso: um posto funcionando, medição conferida e o operador reg
 | `docs/04-validacao.md` | Protocolo de validação da balança, do uso e do manejo |
 | `docs/05-plano-orcamento.md` | Cronograma por critério de avanço e orçamento por etapa |
 | `docs/06-decisoes.md` | Decisões de arquitetura e seus motivos |
+| `docs/08-mensuracao-manejo.md` | Como registrar uma mudança de manejo e medir o efeito: desenhos, confundidores, clima, detecção |
 | `docs/07-viabilidade.md` | Estudo de viabilidade: soluções parecidas, norma ICAR, mercado regional, riscos e ajustes de rota |
 | `hardware/` | Mecânica do posto, caixa, ligação elétrica |
 | `firmware/posto-esp32/` | Firmware do posto (ESP32 + HX711), ESP-IDF 5.3 |
@@ -42,6 +43,10 @@ Primeiro compromisso: um posto funcionando, medição conferida e o operador reg
 | `server/api/contrato.md` | Contrato HTTP entre posto, servidor e painel |
 | `planilhas/` | Lista de componentes e modelos CSV para validação, horas e custos |
 | `tools/bom_totais.py` | Calcula os totais da lista de componentes e atualiza `docs/03-componentes.md` |
+
+## Ideia central
+
+Cada mudança de manejo é um experimento. O supervisório mede antes e depois, desconta lactação e calor, compara com o lote de controle e diz se funcionou. Ver `docs/08-mensuracao-manejo.md`.
 
 ## Arquitetura em uma linha
 

@@ -99,3 +99,15 @@ O servidor guarda só o hash SHA-256 da chave do posto.
 - Regras puras em cabeçalhos sem dependência do IDF, testadas no PC com o compilador do sistema.
 
 **Consequência.** Build reproduzível sem gerenciador de componentes. Watchdog e detecção de queda de tensão ligados por padrão.
+
+## D12 · Mudança de manejo como experimento
+
+**Contexto.** O objetivo do produto é saber se uma mudança de manejo funcionou. Comparar antes e depois sem controle confunde o efeito com clima e estágio de lactação.
+
+**Decisão.**
+- Mudança de manejo é entidade de primeira classe, com alcance, início, adaptação e janela.
+- Lotes com histórico de alocação, para permitir o desenho escalonado com controle.
+- Clima diário gravado, com ITU por dia. Fonte inicial é a estação do INMET A332; sensor local é condicional.
+- O efeito é calculado em SQL, em visões, com intervalo de confiança e veredicto em texto.
+
+**Consequência.** O painel mostra "melhorou", "piorou", "sem diferença detectável" ou "confundido com clima" sem depender de análise manual. A estatística é simples de propósito: média de deltas por vaca e diferença em diferenças. Modelos mais elaborados só depois de haver dados reais.
