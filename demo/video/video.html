@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>SCARA · demonstração</title>
+<style>
+  :root {
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.10);
+    --s1: #2a78d6;      /* série 1: máquina, lote A, produção */
+    --s1-claro: #cde2fb;
+    --s2: #eb6834;      /* série 2: fora da máquina, controle */
+    --good: #0ca30c;
+    --good-text: #006300;
+    --wash: #ecebe6;
+    --fonte: "Liberation Sans", "DejaVu Sans", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--page); }
+  body { font-family: var(--fonte); color: var(--ink); -webkit-font-smoothing: antialiased; }
+  #palco { position: relative; width: 1920px; height: 1080px; }
+  .cena { position: absolute; inset: 0; padding: 96px 128px 120px; opacity: 0; }
+  .rotulo { font-size: 26px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--s1); font-weight: 700; }
+  h1 { font-size: 64px; line-height: 1.12; font-weight: 700; margin-top: 18px; max-width: 1500px; }
+  h2 { font-size: 56px; line-height: 1.15; font-weight: 700; margin-top: 14px; max-width: 1600px; }
+  p.corpo { font-size: 34px; line-height: 1.4; color: var(--ink2); margin-top: 28px; max-width: 1500px; }
+  .nota { font-size: 24px; color: var(--muted); }
+  .rodape { position: absolute; left: 128px; right: 128px; bottom: 44px; display: flex; justify-content: space-between;
+            font-size: 22px; color: var(--muted); }
+  .marca { font-weight: 700; color: var(--ink2); letter-spacing: 0.04em; }
+  #progresso { position: absolute; left: 0; bottom: 0; height: 6px; background: var(--s1); width: 0; }
+  .cartao { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 32px 36px; }
+  .tile-rotulo { font-size: 26px; color: var(--ink2); }
+  .tile-valor { font-size: 64px; font-weight: 700; margin-top: 8px; }
+  .tile-sub { font-size: 24px; color: var(--muted); margin-top: 6px; }
+  .legenda { display: flex; gap: 40px; font-size: 26px; color: var(--ink2); align-items: center; }
+  .chave { display: inline-block; width: 28px; height: 6px; border-radius: 3px; vertical-align: middle; margin-right: 12px; }
+  .chave-bloco { display: inline-block; width: 22px; height: 22px; border-radius: 5px; vertical-align: -3px; margin-right: 12px; }
+  svg text { font-family: var(--fonte); }
+</style>
+</head>
+<body>
+<div id="palco">
+  <div id="cenas"></div>
+  <div class="rodape" id="rodape"><span class="marca">SCARA</span><span>Supervisório de ordenha balde ao pé · prova de conceito</span></div>
+  <div id="progresso"></div>
+</div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Utilidades
+// ---------------------------------------------------------------------------
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const ease = x => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const lerp = (a, b, x) => a + (b - a) * x;
+const kg = (g, casas = 1) => (g / 1000).toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
+const num = (x, casas = 1) => Number(x).toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs = {}, pai = null, texto = null) {
+  const svg = ['svg','g','rect','circle','line','path','text','polyline','polygon','ellipse','defs','clipPath'].includes(tag);
+  const e = svg ? document.createElementNS(NS, tag) : document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'style' && typeof v === 'object') Object.assign(e.style, v);
+    else if (k === 'html') e.innerHTML = v;
+    else e.setAttribute(k, v);
+  }
+  if (texto !== null) e.textContent = texto;
+  if (pai) pai.appendChild(e);
+  return e;
+}
+function aparece(e, x, desloc = 24) {
+  e.style.opacity = x;
+  e.style.transform = `translateY(${(1 - ease(x)) * desloc}px)`;
+}
+
+// ---------------------------------------------------------------------------
+// Cenas: cada uma tem início, fim, montagem e animação local
+// ---------------------------------------------------------------------------
+const CENAS = [];
+let DURACAO = 0;
+function cena(duracao, montar) {
+  const raiz = el('section', { class: 'cena' }, document.getElementById('cenas'));
+  const animar = montar(raiz);
+  CENAS.push({ inicio: DURACAO, fim: DURACAO + duracao, raiz, animar });
+  DURACAO += duracao;
+}
+
+window.iniciar = function (D) {
+  const E = D.efeito, T = D.tempos, C = D.contagens;
+
+  // 1 · Abertura ------------------------------------------------------------
+  cena(6, r => {
+    const a = el('div', { class: 'rotulo' }, r, 'Prova de conceito · Morada Nova, Ceará');
+    const b = el('h1', { style: { fontSize: '120px', marginTop: '150px', letterSpacing: '0.02em' } }, r, 'SCARA');
+    const c = el('h2', { style: { fontWeight: 400, color: 'var(--ink2)', marginTop: '10px' } }, r, 'Supervisório de ordenha balde ao pé');
+    const d = el('p', { class: 'corpo', style: { marginTop: '60px' } }, r,
+      'Quanto cada vaca produz, quanto tempo a ordenha leva e se a mudança de manejo funcionou.');
+    const linha = el('div', { style: { height: '6px', background: 'var(--s1)', borderRadius: '3px', marginTop: '28px', width: '0px' } }, r);
+    return t => {
+      aparece(a, seg(t, 0.2, 0.9)); aparece(b, seg(t, 0.4, 1.3)); aparece(c, seg(t, 0.9, 1.8));
+      linha.style.width = `${ease(seg(t, 1.2, 2.4)) * 240}px`;
+      aparece(d, seg(t, 2.0, 3.0));
+    };
+  });
+
+  // 2 · Observação de campo ------------------------------------------------
+  cena(12, r => {
+    const a = el('div', { class: 'rotulo' }, r, 'O que vimos na fazenda');
+    const b = el('h2', {}, r, 'Uma ordenha de 60 minutos. A máquina trabalha só 20.');
+    const sub = el('p', { class: 'corpo' }, r, '9 vacas, 3 postos, 4 rodadas. Cada vaca leva cerca de 5 minutos na máquina.');
+    const W = 1664, H = 260;
+    const s = el('svg', { width: W, height: H, style: { marginTop: '70px', display: 'block' } }, r);
+    const larg = W - 4;
+    const fracM = 20 / 60;
+    const r1 = el('rect', { x: 0, y: 40, height: 120, rx: 6, fill: 'var(--s1)' }, s);
+    const r2 = el('rect', { y: 40, height: 120, rx: 6, fill: 'var(--s2)' }, s);
+    const t1 = el('text', { y: 112, 'font-size': 34, 'font-weight': 700, fill: '#fff' }, s, 'Máquina · 20 min');
+    const t2 = el('text', { y: 112, 'font-size': 34, 'font-weight': 700, fill: '#fff' }, s, 'Fora da máquina · 40 min');
+    const eixo = el('g', {}, s);
+    [0, 15, 30, 45, 60].forEach(m => {
+      const x = m / 60 * larg;
+      el('line', { x1: x, x2: x, y1: 170, y2: 182, stroke: 'var(--axis)', 'stroke-width': 1 }, eixo);
+      el('text', { x, y: 216, 'font-size': 24, fill: 'var(--muted)', 'text-anchor': m === 0 ? 'start' : m === 60 ? 'end' : 'middle' }, eixo, `${m} min`);
+    });
+    const leg = el('div', { class: 'legenda', style: { marginTop: '8px' } }, r,
+      null);
+    leg.innerHTML = '<span><span class="chave-bloco" style="background:var(--s1)"></span>Máquina ordenhando</span>' +
+                    '<span><span class="chave-bloco" style="background:var(--s2)"></span>Troca de vacas, tinas de ração, preparo</span>';
+    const c1 = el('p', { class: 'corpo', style: { marginTop: '56px', color: 'var(--ink)' } }, r,
+      'Dois terços do tempo estão entre uma rodada e outra. E ninguém anota quanto cada vaca produziu.');
+    const nota = el('div', { class: 'nota', style: { marginTop: '18px' } }, r, 'Observação de campo, outubro de 2026.');
+    return t => {
+      aparece(a, seg(t, 0.2, 0.9)); aparece(b, seg(t, 0.5, 1.4)); aparece(sub, seg(t, 1.2, 2.0));
+      const g1 = ease(seg(t, 2.0, 3.6)), g2 = ease(seg(t, 3.6, 5.6));
+      const w1 = larg * fracM * g1;
+      r1.setAttribute('width', Math.max(0, w1));
+      r2.setAttribute('x', larg * fracM + 2);
+      r2.setAttribute('width', Math.max(0, (larg * (1 - fracM) - 2) * g2));
+      t1.setAttribute('x', 28); t1.style.opacity = seg(t, 3.2, 3.8);
+      t2.setAttribute('x', larg * fracM + 30); t2.style.opacity = seg(t, 5.2, 5.8);
+      eixo.style.opacity = seg(t, 2.0, 2.6);
+      aparece(leg, seg(t, 5.6, 6.3));
+      aparece(c1, seg(t, 6.6, 7.6)); aparece(nota, seg(t, 7.2, 8.0));
+    };
+  });
+
+  // 3 · O posto ------------------------------------------------------------
+  cena(15, r => {
+    const a = el('div', { class: 'rotulo' }, r, 'O posto');
+    const b = el('h2', {}, r, 'Uma balança sob o balde e um botão.');
+    const W = 820, H = 640;
+    const s = el('svg', { width: W, height: H, style: { position: 'absolute', left: '128px', top: '300px' } }, r);
+    // suporte e mangueira presa no ponto fixo
+    el('rect', { x: 560, y: 20, width: 18, height: 560, rx: 4, fill: 'var(--axis)' }, s);
+    el('rect', { x: 330, y: 20, width: 248, height: 14, rx: 4, fill: 'var(--axis)' }, s);
+    el('circle', { cx: 350, cy: 40, r: 9, fill: 'var(--ink2)' }, s);
+    el('path', { d: 'M350 48 C 350 120, 300 120, 290 190', fill: 'none', stroke: 'var(--ink2)', 'stroke-width': 6, 'stroke-linecap': 'round' }, s);
+    el('text', { x: 372, y: 70, 'font-size': 22, fill: 'var(--muted)' }, s, 'mangueira presa');
+    el('text', { x: 372, y: 96, 'font-size': 22, fill: 'var(--muted)' }, s, 'no suporte');
+    // balde
+    el('rect', { x: 160, y: 190, width: 240, height: 22, rx: 6, fill: 'var(--ink2)' }, s);
+    el('rect', { x: 176, y: 212, width: 208, height: 280, rx: 18, fill: 'var(--surface)', stroke: 'var(--ink2)', 'stroke-width': 4 }, s);
+    const leite = el('rect', { x: 180, width: 200, rx: 14, fill: 'var(--s1-claro)' }, s);
+    el('text', { x: 280, y: 260, 'font-size': 24, fill: 'var(--muted)', 'text-anchor': 'middle' }, s, 'balde');
+    // plataforma, célula e base
+    el('rect', { x: 120, y: 500, width: 320, height: 18, rx: 4, fill: 'var(--ink)' }, s);
+    el('rect', { x: 250, y: 518, width: 60, height: 34, rx: 4, fill: 'var(--s1)' }, s);
+    el('rect', { x: 100, y: 552, width: 360, height: 14, rx: 4, fill: 'var(--axis)' }, s);
+    el('text', { x: 280, y: 604, 'font-size': 24, fill: 'var(--ink2)', 'text-anchor': 'middle' }, s, 'célula de carga');
+    // caixa com ESP32, botão e LED
+    el('rect', { x: 600, y: 230, width: 200, height: 190, rx: 14, fill: 'var(--surface)', stroke: 'var(--ink2)', 'stroke-width': 4 }, s);
+    el('text', { x: 700, y: 276, 'font-size': 22, fill: 'var(--ink2)', 'text-anchor': 'middle' }, s, 'ESP32');
+    el('text', { x: 700, y: 304, 'font-size': 18, fill: 'var(--muted)', 'text-anchor': 'middle' }, s, 'memória e relógio');
+    const botao = el('circle', { cx: 700, cy: 362, r: 30, fill: 'var(--ink2)' }, s);
+    const led = el('circle', { cx: 700, cy: 362, r: 12, fill: 'var(--good)' }, s);
+    const anel = el('circle', { cx: 700, cy: 362, r: 30, fill: 'none', stroke: 'var(--s1)', 'stroke-width': 5, opacity: 0 }, s);
+    el('text', { x: 700, y: 452, 'font-size': 22, fill: 'var(--ink2)', 'text-anchor': 'middle' }, s, 'botão com LED');
+
+    // painel à direita
+    const painel = el('div', { style: { position: 'absolute', left: '980px', top: '300px', width: '812px' } }, r);
+    const leitura = el('div', { class: 'cartao' }, painel);
+    el('div', { class: 'tile-rotulo' }, leitura, 'Peso no balde');
+    const valor = el('div', { class: 'tile-valor', style: { fontVariantNumeric: 'tabular-nums' } }, leitura, '12,0 kg');
+    const estado = el('div', { class: 'tile-sub' }, leitura, 'estável');
+    const log = el('div', { class: 'cartao', style: { marginTop: '24px', fontSize: '28px', lineHeight: '1.7', fontVariantNumeric: 'tabular-nums' } }, painel);
+    const l1 = el('div', {}, log, '05:02 · início · 12,0 kg');
+    const l2 = el('div', {}, log, '05:07 · fim · 18,2 kg');
+    const l3 = el('div', { style: { fontWeight: 700 } }, log, 'Vaca 101 · 6,2 kg');
+    const botoes = el('div', { style: { marginTop: '24px', fontSize: '26px', lineHeight: '1.65', color: 'var(--ink2)' } }, painel);
+    botoes.innerHTML = '<div><b style="color:var(--ink)">Toque curto</b> · início e fim</div>' +
+                       '<div><b style="color:var(--ink)">Toque duplo</b> · a vaca da vez não veio</div>' +
+                       '<div><b style="color:var(--ink)">Toque longo</b> · troca de balde</div>';
+    const ini = 12.0, fim = 18.2;
+    return t => {
+      aparece(a, seg(t, 0.2, 0.9)); aparece(b, seg(t, 0.5, 1.4));
+      s.style.opacity = seg(t, 0.8, 1.8); aparece(painel, seg(t, 1.2, 2.2));
+      // toque de início em 3,0 s, ordenha 3,8 a 8,2 s, toque de fim em 9,0 s
+      const toque = (t0) => { const x = seg(t, t0, t0 + 0.6); return x > 0 && x < 1 ? Math.sin(x * Math.PI) : 0; };
+      const k = toque(3.0) + toque(9.0);
+      anel.setAttribute('opacity', k); anel.setAttribute('r', 30 + k * 14);
+      botao.setAttribute('r', 30 - k * 3);
+      const aguardando = (t > 3.0 && t < 3.8) || (t > 9.0 && t < 9.8);
+      led.setAttribute('fill', aguardando ? (Math.floor(t * 4) % 2 ? '#eda100' : 'var(--good)') : 'var(--good)');
+      const ord = ease(seg(t, 3.8, 8.2));
+      const peso = lerp(ini, fim, ord);
+      valor.textContent = `${num(peso)} kg`;
+      estado.textContent = t < 3.8 ? 'estável' : t < 8.2 ? 'ordenhando' : 'estável';
+      const altura = 40 + ord * 150;
+      leite.setAttribute('y', 488 - altura); leite.setAttribute('height', altura);
+      aparece(l1, seg(t, 3.8, 4.3)); aparece(l2, seg(t, 9.8, 10.3)); aparece(l3, seg(t, 10.3, 10.9));
+      aparece(botoes, seg(t, 11.0, 11.8));
+    };
+  });
+
+  // 4 · Ordem fixa ---------------------------------------------------------
+  cena(11, r => {
+    const a = el('div', { class: 'rotulo' }, r, 'Sem celular, sem brinco eletrônico');
+    const b = el('h2', {}, r, 'A ordem de entrada diz qual vaca está no posto.');
+    const W = 1664, H = 470;
+    const s = el('svg', { width: W, height: H, style: { marginTop: '60px', display: 'block' } }, r);
+    const postosX = [300, 830, 1360];
+    const fila = [[101, 104, 107, 110], [102, 105, 108, 111], [103, 106, 109, 112]];
+    const fichas = [];
+    postosX.forEach((x, p) => {
+      el('rect', { x: x - 120, y: 300, width: 240, height: 130, rx: 18, fill: 'var(--surface)', stroke: 'var(--axis)', 'stroke-width': 3 }, s);
+      el('text', { x, y: 470, 'font-size': 28, fill: 'var(--ink2)', 'text-anchor': 'middle' }, s, `Posto ${p + 1}`);
+      fila[p].forEach((v, i) => {
+        const g = el('g', {}, s);
+        el('circle', { cx: 0, cy: 0, r: 44, fill: 'var(--surface)', stroke: 'var(--s1)', 'stroke-width': 4 }, g);
+        el('text', { x: 0, y: 11, 'font-size': 30, 'font-weight': 700, fill: 'var(--ink)', 'text-anchor': 'middle' }, g, String(v));
+        fichas.push({ g, p, i, x, v });
+      });
+    });
+    const pulo = el('g', { opacity: 0 }, s);
+    el('rect', { x: 600, y: 40, width: 460, height: 64, rx: 32, fill: 'var(--ink)' }, pulo);
+    el('text', { x: 830, y: 82, 'font-size': 28, fill: '#fff', 'text-anchor': 'middle' }, pulo, 'Vaca 105 não veio: toque duplo');
+    const c = el('p', { class: 'corpo', style: { marginTop: '44px' } }, r,
+      `O operador só aperta o botão. Na simulação, ${C.automaticas} de ${C.ordenhas_validas} ordenhas foram associadas assim.`);
+    return t => {
+      aparece(a, seg(t, 0.2, 0.9)); aparece(b, seg(t, 0.5, 1.4));
+      // Rodadas avançam de 2,0 a 8,4 s. Em cada rodada a vaca fica no posto; a troca acontece no fim.
+      // A vaca 105 (posto 2) não vem: sai da fila antes da rodada 2 e quem está atrás anda uma posição.
+      const R = seg(t, 2.0, 8.4) * 3;
+      const n = Math.min(Math.floor(R), 3), u = R - n;
+      const passo = n >= 3 ? 0 : ease(seg(u, 0.8, 1.0));
+      const pulou = seg(t, 3.0, 3.5);
+      const avanca = ease(seg(t, 3.2, 3.6));
+      fichas.forEach(f => {
+        let i = f.i;
+        if (f.p === 1 && f.i > 1) i -= avanca;
+        const pe = i - (n + passo);
+        let x, y, op = 1;
+        if (pe >= 1) { x = f.x - 165 + (pe - 1) * 110; y = 200; }
+        else if (pe > 0) { const k = 1 - pe; x = lerp(f.x - 165, f.x, k); y = lerp(200, 365, k); }
+        else if (pe > -1) { const e = -pe; x = f.x + e * 170; y = 365; op = 1 - e; }
+        else { x = f.x; y = 365; op = 0; }
+        if (f.v === 105) { op *= 1 - pulou; y -= pulou * 70; }
+        f.g.setAttribute('transform', `translate(${x},${y})`);
+        f.g.style.opacity = seg(t, 0.8, 1.6) * op;
+      });
+      pulo.setAttribute('opacity', seg(t, 2.8, 3.2) * (1 - seg(t, 5.6, 6.2)));
+      aparece(c, seg(t, 8.0, 8.8));
+    };
+  });
+
+  // 5 · Coleta por aproximação ----------------------------------------------
+  cena(11, r => {
+    const a = el('div', { class: 'rotulo' }, r, 'Coleta por aproximação');
+    const b = el('h2', {}, r, 'O posto guarda tudo. O computador vem buscar.');
+    const W = 1664, H = 420;
+    const s = el('svg', { width: W, height: H, style: { marginTop: '70px', display: 'block' } }, r);
+    // posto
+    el('rect', { x: 120, y: 60, width: 300, height: 300, rx: 24, fill: 'var(--surface)', stroke: 'var(--ink2)', 'stroke-width': 4 }, s);
+    el('text', { x: 270, y: 120, 'font-size': 30, 'font-weight': 700, fill: 'var(--ink)', 'text-anchor': 'middle' }, s, 'Posto 1');
+    el('text', { x: 270, y: 160, 'font-size': 22, fill: 'var(--muted)', 'text-anchor': 'middle' }, s, 'rede SCARA-POSTO-1');
+    el('rect', { x: 160, y: 200, width: 220, height: 36, rx: 8, fill: 'var(--wash)' }, s);
+    const mem = el('rect', { x: 160, y: 200, height: 36, rx: 8, fill: 'var(--s1)' }, s);
+    const memTxt = el('text', { x: 270, y: 290, 'font-size': 28, fill: 'var(--ink)', 'text-anchor': 'middle', 'font-weight': 700 }, s, '');
+    el('text', { x: 270, y: 326, 'font-size': 22, fill: 'var(--muted)', 'text-anchor': 'middle' }, s, 'eventos na memória');
+    // computador
+    const pc = el('g', {}, s);
+    el('rect', { x: 0, y: 0, width: 330, height: 210, rx: 14, fill: 'var(--surface)', stroke: 'var(--ink2)', 'stroke-width': 4 }, pc);
+    el('rect', { x: -30, y: 214, width: 390, height: 22, rx: 8, fill: 'var(--ink2)' }, pc);
+    el('text', { x: 165, y: 92, 'font-size': 28, 'font-weight': 700, fill: 'var(--ink)', 'text-anchor': 'middle' }, pc, 'Banco da fazenda');
+    const pcTxt = el('text', { x: 165, y: 140, 'font-size': 26, fill: 'var(--ink2)', 'text-anchor': 'middle' }, pc, '');
+    // sinal
+    const ondas = el('g', {}, s);
+    [40, 70, 100].forEach(rr => el('path', { d: `M ${480} ${210 - rr} A ${rr} ${rr} 0 0 1 ${480} ${210 + rr}`, fill: 'none', stroke: 'var(--s1)', 'stroke-width': 5, 'stroke-linecap': 'round' }, ondas));
+    const pontos = [];
+    for (let i = 0; i < 9; i++) pontos.push(el('circle', { r: 9, fill: 'var(--s1)', stroke: 'var(--surface)', 'stroke-width': 2 }, s));
+    const c = el('p', { class: 'corpo', style: { marginTop: '30px' } }, r,
+      'Sem internet e sem servidor na fazenda. A memória do posto guarda cerca de 70 dias de ordenhas.');
+    const total = C.eventos;
+    return t => {
+      aparece(a, seg(t, 0.2, 0.9)); aparece(b, seg(t, 0.5, 1.4));
+      s.style.opacity = seg(t, 0.8, 1.6);
+      const enche = ease(seg(t, 1.2, 3.6));
+      const esvazia = ease(seg(t, 5.6, 8.4));
+      const nPosto = Math.round(total * enche * (1 - esvazia));
+      mem.setAttribute('width', 220 * enche * (1 - esvazia));
+      memTxt.textContent = nPosto.toLocaleString('pt-BR');
+      const chega = ease(seg(t, 3.6, 5.0));
+      pc.setAttribute('transform', `translate(${lerp(1700, 1150, chega)}, 80)`);
+      ondas.style.opacity = seg(t, 5.0, 5.4) * (1 - seg(t, 8.6, 9.0)) * (0.55 + 0.45 * Math.sin(t * 6));
+      pontos.forEach((p, i) => {
+        const fase = ((t - 5.6) * 0.9 + i / pontos.length) % 1;
+        const ativo = t > 5.6 && t < 8.6;
+        p.setAttribute('cx', lerp(440, 1130, fase)); p.setAttribute('cy', 210 + Math.sin(fase * Math.PI) * -40);
+        p.style.opacity = ativo ? Math.sin(fase * Math.PI) : 0;
+      });
+      const nPc = Math.round(total * esvazia);
+      pcTxt.textContent = t < 5.6 ? 'conectando…' : `${nPc.toLocaleString('pt-BR')} eventos recebidos`;
+      aparece(c, seg(t, 8.6, 9.4));
+    };
+  });
+
+  // 6 · Produção por vaca e tempos -------------------------------------------
+  cena(12, r => {
+    const a = el('div', { class: 'rotulo' }, r, 'O que o sistema mostra');
+    const b = el('h2', {}, r, 'Cada vaca, cada ordenha, e o tempo de cada rodada.');
+    const W = 1060, H = 560, m = { e: 70, d: 20, t: 40, b: 70 };
+    const s = el('svg', { width: W, height: H, style: { position: 'absolute', left: '128px', top: '320px' } }, r);
+    el('text', { x: 0, y: 18, 'font-size': 26, fill: 'var(--ink2)' }, s, 'Produção média por vaca, kg por dia, últimos 7 dias');
+    const vs = D.vacas, maxY = 12;
+    const ix = (W - m.e - m.d) / vs.length;
+    const y = v => H - m.b - v / maxY * (H - m.t - m.b - 30);
+    [0, 4, 8, 12].forEach(v => {
+      el('line', { x1: m.e, x2: W - m.d, y1: y(v), y2: y(v), stroke: v === 0 ? 'var(--axis)' : 'var(--grid)', 'stroke-width': 1 }, s);
+      el('text', { x: m.e - 16, y: y(v) + 8, 'font-size': 22, fill: 'var(--muted)', 'text-anchor': 'end' }, s, String(v));
+    });
+    const kmax = vs.reduce((a, v, i) => v.kg_dia > vs[a].kg_dia ? i : a, 0);
+    const kmin = vs.reduce((a, v, i) => v.kg_dia < vs[a].kg_dia ? i : a, 0);
+    const barras = vs.map((v, i) => {
+      const cx = m.e + ix * (i + 0.5);
+      const bar = el('path', { fill: 'var(--s1)' }, s);
+      el('text', { x: cx, y: H - m.b + 34, 'font-size': 22, fill: 'var(--muted)', 'text-anchor': 'middle' }, s, v.brinco);
+      const rot = (i === kmax || i === kmin)
+        ? el('text', { x: cx, 'font-size': 24, 'font-weight': 700, fill: 'var(--ink)', 'text-anchor': 'middle' }, s, num(v.kg_dia)) : null;
+      return { bar, rot, cx, v: v.kg_dia };
+    });
+    el('text', { x: (W + m.e) / 2, y: H - 6, 'font-size': 22, fill: 'var(--muted)', 'text-anchor': 'middle' }, s, 'vaca');
+    const lado = el('div', { style: { position: 'absolute', left: '1270px', top: '320px', width: '522px', display: 'grid', gap: '22px' } }, r);
+    const tiles = [
+      ['Rebanho', `${C.rebanho_kg_dia} kg/dia`, '12 vacas em lactação'],
+      ['Máquina por vaca', `${num(T.maquina_min)} min`, 'medido pelos toques'],
+      ['Troca entre rodadas', `${num(T.troca_min)} min`, 'tempo a reduzir'],
+    ].map(([rot, val, sub]) => {
+      const c = el('div', { class: 'cartao', style: { padding: '24px 32px' } }, lado);
+      el('div', { class: 'tile-rotulo' }, c, rot);
+      el('div', { class: 'tile-valor', style: { fontSize: '54px' } }, c, val);
+      el('div', { class: 'tile-sub' }, c, sub);
+      return c;
+    });
+    const nota = el('div', { class: 'nota', style: { position: 'absolute', left: '128px', top: '944px' } }, r,
+      'Números calculados pelo próprio sistema sobre 21 dias simulados, calibrados com a observação de campo.');
+    const larg = Math.min(24, ix * 0.55);
+    return t => {
+      aparece(a, seg(t, 0.2, 0.9)); aparece(b, seg(t, 0.5, 1.4));
+      s.style.opacity = seg(t, 0.8, 1.4);
+      barras.forEach((o, i) => {
+        const g = ease(seg(t, 1.2 + i * 0.12, 2.4 + i * 0.12));
+        const topo = y(o.v * g), base = y(0), x0 = o.cx - larg / 2, rr = Math.min(4, base - topo);
+        o.bar.setAttribute('d', `M${x0},${base} V${topo + rr} Q${x0},${topo} ${x0 + rr},${topo} H${x0 + larg - rr} Q${x0 + larg},${topo} ${x0 + larg},${topo + rr} V${base} Z`);
+        if (o.rot) { o.rot.setAttribute('y', y(o.v) - 14); o.rot.style.opacity = seg(t, 3.8, 4.4); }
+      });
+      tiles.forEach((c, i) => aparece(c, seg(t, 4.6 + i * 0.7, 5.4 + i * 0.7)));
+      aparece(nota, seg(t, 7.0, 7.8));
+    };
+  });
+
+  // 7 · Mudança de manejo ----------------------------------------------------
+  cena(16, r => {
+    const a = el('div', { class: 'rotulo' }, r, 'A mudança funcionou?');
+    const b = el('h2', {}, r, 'Ração nova no lote A. O outro lote fica como comparação.');
+    const W = 1060, H = 560, m = { e: 70, d: 150, t: 60, b: 70 };
+    const s = el('svg', { width: W, height: H, style: { position: 'absolute', left: '128px', top: '320px' } }, r);
+    const L = D.lotes, n = L.length;
+    const vals = L.flatMap(d => [d.tratado, d.controle]);
+    const yMin = 7.5, yMax = 10.5;
+    const x = i => m.e + i / (n - 1) * (W - m.e - m.d);
+    const y = v => H - m.b - (v - yMin) / (yMax - yMin) * (H - m.t - m.b);
+    // onda de calor: dias 14 a 18
+    const iCalor0 = L.findIndex(d => d.data.endsWith('-14')), iCalor1 = L.findIndex(d => d.data.endsWith('-18'));
+    const calor = el('g', {}, s);
+    el('rect', { x: x(iCalor0 - 0.5), y: m.t, width: x(iCalor1 + 0.5) - x(iCalor0 - 0.5), height: H - m.t - m.b, fill: 'var(--wash)' }, calor);
+    el('text', { x: (x(iCalor0 - 0.5) + x(iCalor1 + 0.5)) / 2, y: m.t + 30, 'font-size': 22, fill: 'var(--ink2)', 'text-anchor': 'middle' }, calor, 'onda de calor');
+    [8, 9, 10].forEach(v => {
+      el('line', { x1: m.e, x2: W - m.d, y1: y(v), y2: y(v), stroke: 'var(--grid)', 'stroke-width': 1 }, s);
+      el('text', { x: m.e - 16, y: y(v) + 8, 'font-size': 22, fill: 'var(--muted)', 'text-anchor': 'end' }, s, String(v));
+    });
+    el('text', { x: 0, y: 24, 'font-size': 26, fill: 'var(--ink2)' }, s, 'kg por vaca por dia');
+    [0, 10, 20].forEach(i => el('text', { x: x(i), y: H - m.b + 36, 'font-size': 22, fill: 'var(--muted)', 'text-anchor': 'middle' }, s,
+      L[i].data.slice(8, 10) + '/' + L[i].data.slice(5, 7)));
+    const iMud = L.findIndex(d => d.data.endsWith('-11'));
+    const mud = el('g', {}, s);
+    el('line', { x1: x(iMud), x2: x(iMud), y1: m.t, y2: H - m.b, stroke: 'var(--ink2)', 'stroke-width': 2 }, mud);
+    el('text', { x: x(iMud) - 10, y: m.t + 30, 'font-size': 22, fill: 'var(--ink)', 'text-anchor': 'end', 'font-weight': 700 }, mud, 'ração nova');
+    const pts = k => L.map((d, i) => `${x(i)},${y(d[k])}`);
+    const clip = el('clipPath', { id: 'revela' }, el('defs', {}, s));
+    const clipR = el('rect', { x: 0, y: 0, height: H, width: 0 }, clip);
+    const linhas = el('g', { 'clip-path': 'url(#revela)' }, s);
+    el('polyline', { points: pts('controle').join(' '), fill: 'none', stroke: 'var(--s2)', 'stroke-width': 3, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, linhas);
+    el('polyline', { points: pts('tratado').join(' '), fill: 'none', stroke: 'var(--s1)', 'stroke-width': 3, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, linhas);
+    const fimT = el('g', {}, s), fimC = el('g', {}, s);
+    el('circle', { cx: x(n - 1), cy: y(L[n - 1].tratado), r: 7, fill: 'var(--s1)', stroke: 'var(--surface)', 'stroke-width': 3 }, fimT);
+    el('text', { x: x(n - 1) + 18, y: y(L[n - 1].tratado) + 8, 'font-size': 24, fill: 'var(--ink)' }, fimT, 'Lote A');
+    el('circle', { cx: x(n - 1), cy: y(L[n - 1].controle), r: 7, fill: 'var(--s2)', stroke: 'var(--surface)', 'stroke-width': 3 }, fimC);
+    el('text', { x: x(n - 1) + 18, y: y(L[n - 1].controle) + 8, 'font-size': 24, fill: 'var(--ink)' }, fimC, 'Controle');
+    const leg = el('div', { class: 'legenda', style: { position: 'absolute', left: '198px', top: '900px' } }, r);
+    leg.innerHTML = '<span><span class="chave" style="background:var(--s1)"></span>Lote A, ração nova</span>' +
+                    '<span><span class="chave" style="background:var(--s2)"></span>Controle, ração de antes</span>';
+
+    const lado = el('div', { style: { position: 'absolute', left: '1270px', top: '320px', width: '522px', display: 'grid', gap: '22px' } }, r);
+    const ing = el('div', { class: 'cartao' }, lado);
+    el('div', { class: 'tile-rotulo' }, ing, 'Só antes e depois');
+    el('div', { class: 'tile-valor', style: { color: 'var(--ink2)' } }, ing, `${D.ingenuo.delta_g >= 0 ? '+' : '−'}${kg(Math.abs(D.ingenuo.delta_g), 2)} kg`);
+    el('div', { class: 'tile-sub' }, ing, 'o calor esconde o ganho');
+    const real = el('div', { class: 'cartao', style: { borderColor: 'var(--s1)', borderWidth: '2px' } }, lado);
+    el('div', { class: 'tile-rotulo' }, real, 'Com o lote de comparação');
+    el('div', { class: 'tile-valor' }, real, `+${kg(E.efeito_g_vaca_dia, 2)} kg`);
+    el('div', { class: 'tile-sub' }, real, `por vaca por dia · IC 95%: ${kg(E.ic95_inf_g, 2)} a ${kg(E.ic95_sup_g, 2)}`);
+    const ver = el('div', { style: { marginTop: '16px', fontSize: '30px', fontWeight: 700, color: 'var(--good-text)', display: 'flex', alignItems: 'center', gap: '12px' } }, real);
+    ver.innerHTML = '<svg width="34" height="34" viewBox="0 0 34 34"><circle cx="17" cy="17" r="16" fill="#0ca30c"/><path d="M9 17.5l5.5 5.5L25 12" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+                    `<span>${E.veredicto === 'melhorou' ? 'Melhorou' : E.veredicto}</span>`;
+    return t => {
+      aparece(a, seg(t, 0.2, 0.9)); aparece(b, seg(t, 0.5, 1.4));
+      s.style.opacity = seg(t, 0.8, 1.4); aparece(leg, seg(t, 1.0, 1.6));
+      clipR.setAttribute('width', lerp(0, W, ease(seg(t, 1.6, 7.0))));
+      mud.style.opacity = seg(t, 3.2, 3.7);
+      calor.style.opacity = seg(t, 4.4, 4.9);
+      fimT.style.opacity = fimC.style.opacity = seg(t, 6.8, 7.3);
+      aparece(ing, seg(t, 8.0, 8.8));
+      aparece(real, seg(t, 10.0, 10.8));
+    };
+  });
+
+  // 8 · Integração -----------------------------------------------------------
+  cena(10, r => {
+    const a = el('div', { class: 'rotulo' }, r, 'O dado é do produtor');
+    const b = el('h2', {}, r, 'Sai em padrão aberto para quem ajuda a fazenda.');
+    const W = 1664, H = 470;
+    const s = el('svg', { width: W, height: H, style: { marginTop: '60px', display: 'block' } }, r);
+    const centro = { x: 360, y: 235 };
+    el('rect', { x: centro.x - 200, y: centro.y - 80, width: 400, height: 160, rx: 22, fill: 'var(--s1)' }, s);
+    el('text', { x: centro.x, y: centro.y - 6, 'font-size': 32, 'font-weight': 700, fill: '#fff', 'text-anchor': 'middle' }, s, 'Banco da fazenda');
+    el('text', { x: centro.x, y: centro.y + 36, 'font-size': 24, fill: '#fff', 'text-anchor': 'middle' }, s, 'autorização por parceiro');
+    const destinos = [
+      ['ICAR ADE', 'padrão internacional'], ['GisLeite', 'Embrapa'], ['IDEAGRI', 'e outros gestores'],
+      ['Técnico', 'assistência e Senar'], ['Laticínio', 'qualidade e coleta'],
+    ];
+    const itens = destinos.map(([t1, t2], i) => {
+      const yy = 30 + i * 92, xx = 1100;
+      const g = el('g', {}, s);
+      const caminho = el('path', { d: `M${centro.x + 200},${centro.y} C ${780},${centro.y} ${820},${yy + 34} ${xx},${yy + 34}`, fill: 'none', stroke: 'var(--axis)', 'stroke-width': 3 }, g);
+      el('rect', { x: xx, y: yy, width: 520, height: 68, rx: 14, fill: 'var(--surface)', stroke: 'var(--border)' }, g);
+      el('text', { x: xx + 28, y: yy + 44, 'font-size': 28, 'font-weight': 700, fill: 'var(--ink)' }, g, t1);
+      el('text', { x: xx + 210, y: yy + 44, 'font-size': 24, fill: 'var(--ink2)' }, g, t2);
+      const len = caminho.getTotalLength();
+      caminho.setAttribute('stroke-dasharray', len); caminho.setAttribute('stroke-dashoffset', len);
+      return { g, caminho, len };
+    });
+    const c = el('p', { class: 'corpo', style: { marginTop: '10px' } }, r,
+      D.ade.validado
+        ? `${D.ade.itens.toLocaleString('pt-BR')} registros exportados no padrão ICAR, com ${D.ade.erros} erros na validação oficial.`
+        : 'Exportação no padrão ICAR e em planilha para GisLeite e IDEAGRI.');
+    return t => {
+      aparece(a, seg(t, 0.2, 0.9)); aparece(b, seg(t, 0.5, 1.4));
+      s.style.opacity = seg(t, 0.8, 1.4);
+      itens.forEach((o, i) => {
+        const x0 = seg(t, 1.6 + i * 0.5, 2.6 + i * 0.5);
+        o.caminho.setAttribute('stroke-dashoffset', o.len * (1 - ease(x0)));
+        o.g.style.opacity = 0.25 + 0.75 * seg(t, 1.6 + i * 0.5, 2.0 + i * 0.5);
+      });
+      aparece(c, seg(t, 5.2, 6.0));
+    };
+  });
+
+  // 9 · Próximo passo --------------------------------------------------------
+  cena(8, r => {
+    const a = el('div', { class: 'rotulo' }, r, 'Próximo passo');
+    const b = el('h2', {}, r, 'Etapa 1: um posto, guardando e sendo coletado.');
+    const passos = el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '28px', marginTop: '70px' } }, r);
+    const lista = [
+      ['1', 'Posto em bancada', 'Calibração e 30 comparações com balança de referência'],
+      ['2', 'Posto na sala', 'Ordem fixa das vacas e coleta pelo notebook'],
+      ['3', 'Produtor sozinho', 'Medir o tempo de troca e testar a primeira mudança'],
+    ].map(([n, t1, t2]) => {
+      const c = el('div', { class: 'cartao', style: { minHeight: '260px' } }, passos);
+      el('div', { style: { fontSize: '56px', fontWeight: 700, color: 'var(--s1)' } }, c, n);
+      el('div', { style: { fontSize: '34px', fontWeight: 700, marginTop: '8px' } }, c, t1);
+      el('div', { style: { fontSize: '26px', color: 'var(--ink2)', marginTop: '10px', lineHeight: 1.4 } }, c, t2);
+      return c;
+    });
+    const custo = el('p', { class: 'corpo', style: { marginTop: '56px', color: 'var(--ink)' } }, r,
+      'Investimento da etapa 1: R$ 1.018 a R$ 2.544, já com 20% de reserva.');
+    const nota = el('div', { class: 'nota', style: { marginTop: '16px' } }, r,
+      'Resultados de produção e de manejo deste vídeo vêm de simulação no sistema real. Os tempos de ordenha vêm da observação de campo.');
+    return t => {
+      aparece(a, seg(t, 0.2, 0.9)); aparece(b, seg(t, 0.5, 1.4));
+      lista.forEach((c, i) => aparece(c, seg(t, 1.2 + i * 0.5, 2.0 + i * 0.5)));
+      aparece(custo, seg(t, 3.0, 3.8)); aparece(nota, seg(t, 3.6, 4.4));
+    };
+  });
+
+  window.DURACAO = DURACAO;
+  window.render(0);
+};
+
+// ---------------------------------------------------------------------------
+// Render determinístico: o gravador chama render(t) para cada quadro
+// ---------------------------------------------------------------------------
+window.render = function (t) {
+  const TRANS = 0.6;
+  for (const c of CENAS) {
+    const local = t - c.inicio;
+    const dentro = t >= c.inicio - TRANS && t < c.fim + TRANS;
+    if (!dentro) { c.raiz.style.opacity = 0; c.raiz.style.visibility = 'hidden'; continue; }
+    const entra = c.inicio === 0 ? 1 : seg(t, c.inicio, c.inicio + TRANS);
+    const sai = c.fim >= DURACAO ? 1 : 1 - seg(t, c.fim - TRANS, c.fim);
+    c.raiz.style.visibility = 'visible';
+    c.raiz.style.opacity = Math.min(entra, sai);
+    c.animar(clamp(local, 0, c.fim - c.inicio));
+  }
+  document.getElementById('progresso').style.width = `${clamp(t / DURACAO) * 1920}px`;
+  document.getElementById('rodape').style.opacity = t < 6 ? 0 : 1;
+};
+</script>
+</body>
+</html>

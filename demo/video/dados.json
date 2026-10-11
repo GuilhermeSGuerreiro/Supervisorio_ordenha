@@ -1,0 +1,300 @@
+{
+ "vacas": [
+  {
+   "brinco": "101",
+   "kg_dia": 11.3
+  },
+  {
+   "brinco": "102",
+   "kg_dia": 9.0
+  },
+  {
+   "brinco": "103",
+   "kg_dia": 8.6
+  },
+  {
+   "brinco": "104",
+   "kg_dia": 11.4
+  },
+  {
+   "brinco": "105",
+   "kg_dia": 7.4
+  },
+  {
+   "brinco": "106",
+   "kg_dia": 9.2
+  },
+  {
+   "brinco": "107",
+   "kg_dia": 6.0
+  },
+  {
+   "brinco": "108",
+   "kg_dia": 8.9
+  },
+  {
+   "brinco": "109",
+   "kg_dia": 7.3
+  },
+  {
+   "brinco": "110",
+   "kg_dia": 10.6
+  },
+  {
+   "brinco": "111",
+   "kg_dia": 7.0
+  },
+  {
+   "brinco": "112",
+   "kg_dia": 9.4
+  }
+ ],
+ "lotes": [
+  {
+   "data": "2026-09-01",
+   "tratado": 9.45,
+   "controle": 9.17
+  },
+  {
+   "data": "2026-09-02",
+   "tratado": 9.43,
+   "controle": 9.11
+  },
+  {
+   "data": "2026-09-03",
+   "tratado": 9.51,
+   "controle": 9.02
+  },
+  {
+   "data": "2026-09-04",
+   "tratado": 9.23,
+   "controle": 9.27
+  },
+  {
+   "data": "2026-09-05",
+   "tratado": 9.15,
+   "controle": 9.04
+  },
+  {
+   "data": "2026-09-06",
+   "tratado": 9.34,
+   "controle": 9.04
+  },
+  {
+   "data": "2026-09-07",
+   "tratado": 8.99,
+   "controle": 8.97
+  },
+  {
+   "data": "2026-09-08",
+   "tratado": 9.43,
+   "controle": 8.84
+  },
+  {
+   "data": "2026-09-09",
+   "tratado": 9.28,
+   "controle": 8.8
+  },
+  {
+   "data": "2026-09-10",
+   "tratado": 9.25,
+   "controle": 8.76
+  },
+  {
+   "data": "2026-09-11",
+   "tratado": 9.5,
+   "controle": 8.71
+  },
+  {
+   "data": "2026-09-12",
+   "tratado": 10.0,
+   "controle": 8.92
+  },
+  {
+   "data": "2026-09-13",
+   "tratado": 10.07,
+   "controle": 8.8
+  },
+  {
+   "data": "2026-09-14",
+   "tratado": 8.98,
+   "controle": 8.1
+  },
+  {
+   "data": "2026-09-15",
+   "tratado": 9.15,
+   "controle": 8.05
+  },
+  {
+   "data": "2026-09-16",
+   "tratado": 9.1,
+   "controle": 8.08
+  },
+  {
+   "data": "2026-09-17",
+   "tratado": 9.03,
+   "controle": 7.89
+  },
+  {
+   "data": "2026-09-18",
+   "tratado": 9.11,
+   "controle": 8.08
+  },
+  {
+   "data": "2026-09-19",
+   "tratado": 9.65,
+   "controle": 8.53
+  },
+  {
+   "data": "2026-09-20",
+   "tratado": 9.77,
+   "controle": 8.82
+  },
+  {
+   "data": "2026-09-21",
+   "tratado": 9.78,
+   "controle": 8.7
+  }
+ ],
+ "clima": [
+  {
+   "data": "2026-09-01",
+   "itu_medio": 78.4,
+   "itu_max": 81.5
+  },
+  {
+   "data": "2026-09-02",
+   "itu_medio": 78.1,
+   "itu_max": 81.9
+  },
+  {
+   "data": "2026-09-03",
+   "itu_medio": 78.4,
+   "itu_max": 80.7
+  },
+  {
+   "data": "2026-09-04",
+   "itu_medio": 78.6,
+   "itu_max": 81.4
+  },
+  {
+   "data": "2026-09-05",
+   "itu_medio": 78.6,
+   "itu_max": 81.8
+  },
+  {
+   "data": "2026-09-06",
+   "itu_medio": 78.1,
+   "itu_max": 80.6
+  },
+  {
+   "data": "2026-09-07",
+   "itu_medio": 78.2,
+   "itu_max": 81.1
+  },
+  {
+   "data": "2026-09-08",
+   "itu_medio": 78.3,
+   "itu_max": 81.5
+  },
+  {
+   "data": "2026-09-09",
+   "itu_medio": 78.4,
+   "itu_max": 80.7
+  },
+  {
+   "data": "2026-09-10",
+   "itu_medio": 77.9,
+   "itu_max": 80.3
+  },
+  {
+   "data": "2026-09-11",
+   "itu_medio": 78.3,
+   "itu_max": 80.5
+  },
+  {
+   "data": "2026-09-12",
+   "itu_medio": 78.3,
+   "itu_max": 80.6
+  },
+  {
+   "data": "2026-09-13",
+   "itu_medio": 78.3,
+   "itu_max": 81.0
+  },
+  {
+   "data": "2026-09-14",
+   "itu_medio": 83.9,
+   "itu_max": 85.2
+  },
+  {
+   "data": "2026-09-15",
+   "itu_medio": 84.1,
+   "itu_max": 86.4
+  },
+  {
+   "data": "2026-09-16",
+   "itu_medio": 84.0,
+   "itu_max": 86.0
+  },
+  {
+   "data": "2026-09-17",
+   "itu_medio": 84.1,
+   "itu_max": 86.3
+  },
+  {
+   "data": "2026-09-18",
+   "itu_medio": 84.4,
+   "itu_max": 86.1
+  },
+  {
+   "data": "2026-09-19",
+   "itu_medio": 78.2,
+   "itu_max": 80.3
+  },
+  {
+   "data": "2026-09-20",
+   "itu_medio": 78.9,
+   "itu_max": 81.4
+  },
+  {
+   "data": "2026-09-21",
+   "itu_medio": 78.3,
+   "itu_max": 81.7
+  }
+ ],
+ "efeito": {
+  "titulo": "Concentrado com mais proteína no lote A",
+  "desenho": "escalonado por lote",
+  "n_tratadas": 6,
+  "n_controle": 6,
+  "base_g_vaca_dia": 9239,
+  "efeito_g_vaca_dia": 755,
+  "efeito_pct": 8.2,
+  "ic95_inf_g": 523,
+  "ic95_sup_g": 986,
+  "itu_base": 78.3,
+  "itu_efeito": 82.5,
+  "veredicto": "melhorou"
+ },
+ "ingenuo": {
+  "delta_g": 16
+ },
+ "tempos": {
+  "maquina_min": 5.0,
+  "troca_min": 9.9,
+  "sessao_min": 54
+ },
+ "contagens": {
+  "eventos": 1260,
+  "ordenhas_validas": 504,
+  "automaticas": 504,
+  "ade_ordenhas": 504,
+  "rebanho_kg_dia": 109
+ },
+ "ade": {
+  "validado": true,
+  "itens": 547,
+  "erros": 0
+ }
+}

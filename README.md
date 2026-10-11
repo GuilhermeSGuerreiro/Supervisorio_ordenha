@@ -47,6 +47,7 @@ Primeiro compromisso: um posto funcionando, medição conferida e o operador reg
 | `tools/coletar.py` | Coleta por aproximação: baixa os eventos do posto pelo Wi-Fi dele e grava no banco |
 | `tools/exportar.py` e `tools/validar_ade.py` | Gera os arquivos de exportação e valida o JSON contra os esquemas oficiais do ICAR |
 | `server/api/contrato.md` | Contrato HTTP entre posto, servidor e painel |
+| `demo/video/` | Vídeo de demonstração: simulação no banco real, página animada e gravador |
 | `planilhas/` | Lista de componentes e modelos CSV para validação, horas e custos |
 | `tools/bom_totais.py` | Calcula os totais da lista de componentes e atualiza `docs/03-componentes.md` |
 
