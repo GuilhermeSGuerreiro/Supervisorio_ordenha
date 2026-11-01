@@ -148,6 +148,9 @@ Authorization: Bearer <token>
 | Efeito de cada mudança de manejo | `GET /v_efeito_mudanca?order=inicio.desc` |
 | Efeito por vaca de uma mudança | `GET /v_efeito_mudanca_animal?mudanca_id=eq.<id>` |
 | Mudanças que se sobrepõem | `GET /v_mudanca_sobreposta` |
+| Tempo de cada ordenha | `GET /v_tempo_sessao?order=data.desc,turno.desc` |
+| Troca e máquina por parcial | `GET /v_troca?sessao_id=eq.<id>` |
+| Efeito de uma mudança sobre o tempo | `GET /v_efeito_tempo?order=inicio.desc` |
 | Controle leiteiro por vaca e dia, para CSV | `GET /v_exportacao_controle_leiteiro?data=gte.2026-09-01` com `Accept: text/csv` |
 | Cadastro de animais, para CSV | `GET /v_exportacao_animais` com `Accept: text/csv` |
 

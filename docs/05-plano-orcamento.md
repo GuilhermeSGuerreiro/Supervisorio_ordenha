@@ -7,6 +7,8 @@ Se o critério falhar, a etapa se repete com ajuste, e a verba seguinte não é 
 
 ### Semanas 1–2 · Conhecer a rotina e bancada
 
+Primeira visita feita em outubro de 2026: ver `docs/11-dados-de-campo.md`.
+
 Na fazenda:
 - Responder os pontos a confirmar listados em `docs/00-revisao.md`.
 - Cadastrar animais com situação, data do parto e ordem habitual de entrada.
@@ -49,6 +51,7 @@ Em casa:
 - Completar 30 dias com 95% de registros válidos.
 - Recalcular a tabela de detecção de `docs/08-mensuracao-manejo.md` com a variabilidade real.
 - Primeira mudança de manejo com desenho escalonado por lote, escolhida com o operador.
+- Teste de tempo: porções de ração preparadas antes da ordenha, medido pela troca por rodada. Custo quase zero; dimensiona o dosador.
 - Segunda mudança, de outra categoria, no mês 4.
 - Relatórios semanais, alertas e intervenções registradas.
 - Revisão semanal com o operador.

@@ -16,9 +16,9 @@ Fora do MVP: RFID, dosador automático, app nativo, IA, ordenha canalizada.
 
 | Etapa | Situação |
 |---|---|
-| Código | Firmware compila em ESP-IDF 5.3.6 sem avisos; esquema do banco com 13 cenários passando |
+| Código | Firmware compila em ESP-IDF 5.3.6 sem avisos; banco com 17 cenários de teste passando; exportação ICAR validada |
 | Semana 0 · bancada | não iniciada |
-| Semanas 1–2 · conhecer a rotina | não iniciada |
+| Semanas 1–2 · conhecer a rotina | primeira visita feita em outubro de 2026, ver `docs/11-dados-de-campo.md` |
 | Semanas 3–5 · um posto | não iniciada |
 | Semanas 6–9 · três postos | não iniciada |
 
@@ -35,6 +35,7 @@ Primeiro compromisso: um posto funcionando, medição conferida e o operador reg
 | `docs/04-validacao.md` | Protocolo de validação da balança, do uso e do manejo |
 | `docs/05-plano-orcamento.md` | Cronograma por critério de avanço e orçamento por etapa |
 | `docs/06-decisoes.md` | Decisões de arquitetura e seus motivos |
+| `docs/11-dados-de-campo.md` | Visitas à fazenda: tempos observados, rodadas incompletas, hipóteses para reduzir o tempo da ordenha |
 | `docs/08-mensuracao-manejo.md` | Como registrar uma mudança de manejo e medir o efeito: desenhos, confundidores, clima, detecção |
 | `docs/10-plataforma-integrada.md` | Exportação em ICAR ADE e CSV para GisLeite e IDEAGRI, parceiros, governança do dado |
 | `docs/09-impacto-setor.md` | Como a medição por vaca ajuda o setor: eficiência, genética, clima, emissões, crédito, e sugestões para o produto |

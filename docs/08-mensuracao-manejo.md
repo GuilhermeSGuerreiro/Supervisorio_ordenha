@@ -117,6 +117,15 @@ Regras:
 - Alocação de vacas em lotes é um registro próprio, com data. Mover vaca de lote sem registrar invalida a análise daquele lote.
 - O sistema avisa quando a janela de efeito termina e mostra o resultado na revisão semanal.
 
+## Tempo como métrica
+
+Algumas mudanças valem pelo tempo que devolvem ao produtor, não pelo leite: porções de ração preparadas, dosador, balanceamento das rodadas, horário da ordenha.
+
+- Métrica principal: **troca média por rodada**, em minutos. A duração total depende do número de vacas em lactação, que muda com partos e secagens; a troca não.
+- Desenho: antes e depois no nível da fazenda. Calor e lactação mexem pouco no tempo de troca, então o controle por lote é dispensável aqui.
+- O sistema mostra a diferença com intervalo de confiança e o ganho por ordenha, que é a diferença vezes o número de rodadas.
+- Uma mudança de tempo também pode mexer no leite, por exemplo se a vaca come menos com porções preparadas. O mesmo registro de mudança alimenta `v_efeito_mudanca`, então os dois efeitos são vistos juntos.
+
 ## Clima
 
 - Fonte inicial: estação automática do INMET em Morada Nova, código A332, dados horários públicos. Um serviço no servidor local baixa e grava uma vez por dia.

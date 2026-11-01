@@ -18,7 +18,7 @@ A prova de conceito começa só com o supervisório. Nenhuma mudança é propost
 
 ## Prova de conceito interna
 
-- Fazenda da família com cerca de 12 vacas em lactação.
+- Fazenda da família com cerca de 14 vacas, 9 em lactação na visita de outubro de 2026. Dados de campo em `docs/11-dados-de-campo.md`.
 - As vacas entram sempre na mesma ordem e sempre no mesmo posto. O sistema usa essa ordem para saber qual vaca está no posto, sem celular e sem identificação eletrônica.
 - Um posto com ESP32 que guarda tudo na própria memória. Sem servidor na fazenda, sem internet, sem tempo real.
 - Coleta por aproximação: o computador chega, conecta no Wi-Fi do posto e baixa os eventos. O banco de dados roda no notebook.
@@ -32,6 +32,7 @@ A prova de conceito começa só com o supervisório. Nenhuma mudança é propost
 | Quanto concentrado foi fornecido? | Medidas lançadas convertidas para kg, marcadas como conferidas ou estimadas |
 | Qual animal mudou e merece atenção? | Queda em relação à média da própria vaca no mesmo turno, ocorrências |
 | Como produção e gasto evoluem? | Série diária de leite e concentrado por vaca e do rebanho, kg de leite por kg de concentrado |
+| Quanto tempo a ordenha leva e onde ele se perde? | Duração, rodadas, ocupação dos postos, troca entre rodadas, tempo com e sem máquina ordenhando |
 | A mudança de manejo funcionou? | Efeito em kg por vaca por dia com intervalo de confiança, comparado com lote de controle quando houver, com ITU das duas janelas |
 
 ## Dentro do MVP

@@ -1184,6 +1184,139 @@ select a.mudanca_id as mudanca_a, b.mudanca_id as mudanca_b, count(*) as vacas_e
    and ma.inicio <= coalesce(mb.fim, '9999-12-31') and mb.inicio <= coalesce(ma.fim, '9999-12-31')
  group by a.mudanca_id, b.mudanca_id;
 
+
+-- ---------------------------------------------------------------------------
+-- Tempo da ordenha (docs/11-dados-de-campo.md, D16)
+-- O tempo do produtor é métrica de primeira classe, ao lado do leite.
+-- ---------------------------------------------------------------------------
+
+-- Cada parcial com sua rodada no posto, tempo de máquina e o intervalo desde a parcial anterior.
+-- troca_min: entre vacas diferentes (saída, tinas, entrada, preparo).
+-- pausa_min: entre parciais da mesma vaca (esvaziamento do balde no meio da ordenha).
+create view v_troca as
+with p as (
+  select pa.id, pa.posto_id, pa.ordenha_id, o.sessao_id, ei.ocorrido_em as inicio_em, ef.ocorrido_em as fim_em
+    from parcial pa
+    join ordenha o on o.id = pa.ordenha_id
+    join evento_posto ei on ei.id = pa.evento_inicio
+    join evento_posto ef on ef.id = pa.evento_fim
+   where not pa.anulada and o.anulada_em is null
+),
+q as (
+  select p.*,
+         min(inicio_em) over (partition by posto_id, ordenha_id) as ordenha_inicio,
+         lag(fim_em)     over (partition by posto_id, sessao_id order by inicio_em) as fim_anterior,
+         lag(ordenha_id) over (partition by posto_id, sessao_id order by inicio_em) as ordenha_anterior
+    from p
+)
+select
+  id as parcial_id, posto_id, ordenha_id, sessao_id,
+  dense_rank() over (partition by posto_id, sessao_id order by ordenha_inicio, ordenha_id) as rodada,
+  inicio_em, fim_em,
+  round(extract(epoch from fim_em - inicio_em) / 60.0, 1) as maquina_min,
+  case when ordenha_anterior is distinct from ordenha_id and fim_anterior is not null
+       then round(extract(epoch from inicio_em - fim_anterior) / 60.0, 1) end as troca_min,
+  case when ordenha_anterior = ordenha_id
+       then round(extract(epoch from inicio_em - fim_anterior) / 60.0, 1) end as pausa_min
+from q;
+
+-- Resumo de cada sessão: duração, rodadas, ocupação dos postos e quanto do tempo a máquina trabalhou.
+-- maquina_parede_min: tempo em que pelo menos um posto estava ordenhando (união dos intervalos).
+create view v_tempo_sessao as
+with t as (select * from v_troca),
+ilhas as (
+  select sessao_id, inicio_em, fim_em,
+         case when inicio_em > max(fim_em) over (partition by sessao_id order by inicio_em, fim_em
+                                                 rows between unbounded preceding and 1 preceding)
+              then 1 else 0 end as nova
+    from t
+),
+grupos as (
+  select sessao_id, inicio_em, fim_em,
+         sum(nova) over (partition by sessao_id order by inicio_em, fim_em) as ilha
+    from ilhas
+),
+uniao as (
+  select sessao_id, sum(extract(epoch from fim - ini)) / 60.0 as maquina_parede_min
+    from (select sessao_id, ilha, min(inicio_em) as ini, max(fim_em) as fim from grupos group by sessao_id, ilha) x
+   group by sessao_id
+),
+por_vaca as (
+  select sessao_id, ordenha_id, sum(maquina_min) as maquina_min from t group by sessao_id, ordenha_id
+)
+select
+  s.id as sessao_id, s.fazenda_id, s.data, s.turno,
+  min(t.inicio_em) as inicio_em,
+  max(t.fim_em) as fim_em,
+  round(extract(epoch from max(t.fim_em) - min(t.inicio_em)) / 60.0, 1) as duracao_min,
+  count(distinct t.ordenha_id) as ordenhas,
+  count(distinct t.posto_id) as postos_usados,
+  max(t.rodada) as rodadas,
+  ceil(count(distinct t.ordenha_id)::numeric / nullif(count(distinct t.posto_id), 0))::int as rodadas_minimas,
+  round(100.0 * count(distinct t.ordenha_id) / nullif(max(t.rodada) * count(distinct t.posto_id), 0)) as ocupacao_pct,
+  (select round(avg(pv.maquina_min), 1) from por_vaca pv where pv.sessao_id = s.id) as maquina_min_vaca,
+  round(avg(t.troca_min), 1) as troca_min_media,
+  round(sum(t.pausa_min), 1) as pausas_min,
+  round(u.maquina_parede_min, 1) as maquina_parede_min,
+  round(extract(epoch from max(t.fim_em) - min(t.inicio_em)) / 60.0 - u.maquina_parede_min, 1) as fora_maquina_min
+from sessao s
+join t on t.sessao_id = s.id
+join uniao u on u.sessao_id = s.id
+group by s.id, u.maquina_parede_min;
+
+-- Efeito de uma mudança sobre o tempo: troca média por rodada antes e depois.
+-- Antes e depois no nível da fazenda; o tempo de troca depende pouco de calor e lactação,
+-- mas o número de vacas muda a duração total, por isso a métrica principal é a troca, não a duração.
+create view v_efeito_tempo as
+with j as (
+  select m.*,
+         m.inicio - m.janela_dias as base_ini, m.inicio - 1 as base_fim,
+         m.inicio + m.adaptacao_dias as efeito_ini,
+         least(coalesce(m.fim, '9999-12-31'::date), m.inicio + m.adaptacao_dias + m.janela_dias - 1) as efeito_fim
+    from mudanca_manejo m
+),
+a as (
+  select j.id as mudanca_id,
+         count(ts.troca_min_media) filter (where ts.data between j.base_ini and j.base_fim)       as n_base,
+         avg(ts.troca_min_media)   filter (where ts.data between j.base_ini and j.base_fim)       as troca_base,
+         stddev_samp(ts.troca_min_media) filter (where ts.data between j.base_ini and j.base_fim) as dp_base,
+         count(ts.troca_min_media) filter (where ts.data between j.efeito_ini and j.efeito_fim)   as n_efeito,
+         avg(ts.troca_min_media)   filter (where ts.data between j.efeito_ini and j.efeito_fim)   as troca_efeito,
+         stddev_samp(ts.troca_min_media) filter (where ts.data between j.efeito_ini and j.efeito_fim) as dp_efeito,
+         avg(ts.duracao_min) filter (where ts.data between j.base_ini and j.base_fim)       as duracao_base,
+         avg(ts.duracao_min) filter (where ts.data between j.efeito_ini and j.efeito_fim)   as duracao_efeito,
+         avg(ts.rodadas)     filter (where ts.data between j.base_ini and j.base_fim)       as rodadas_base
+    from j
+    left join v_tempo_sessao ts on ts.fazenda_id = j.fazenda_id
+   group by j.id
+),
+c as (
+  select j.id, j.fazenda_id, j.titulo, j.tipo, j.inicio, j.efeito_fim, a.*,
+         a.troca_efeito - a.troca_base as diferenca,
+         case when a.n_base > 1 and a.n_efeito > 1
+              then sqrt(power(a.dp_base, 2) / a.n_base + power(a.dp_efeito, 2) / a.n_efeito) end as ep
+    from j join a on a.mudanca_id = j.id
+)
+select
+  id, fazenda_id, titulo, tipo, inicio, efeito_fim as janela_termina_em,
+  n_base as sessoes_antes, n_efeito as sessoes_depois,
+  round(troca_base, 1) as troca_antes_min,
+  round(troca_efeito, 1) as troca_depois_min,
+  round(diferenca, 1) as diferenca_min,
+  round(diferenca - 1.96 * ep, 1) as ic95_inf_min,
+  round(diferenca + 1.96 * ep, 1) as ic95_sup_min,
+  round(duracao_base, 1) as duracao_antes_min,
+  round(duracao_efeito, 1) as duracao_depois_min,
+  round(rodadas_base * diferenca, 1) as ganho_por_ordenha_min,
+  case
+    when efeito_fim > current_date then 'aguardando a janela'
+    when ep is null                then 'sessões insuficientes'
+    when diferenca + 1.96 * ep < 0 then 'reduziu'
+    when diferenca - 1.96 * ep > 0 then 'aumentou'
+    else 'sem diferença detectável'
+  end as veredicto
+from c;
+
 -- ---------------------------------------------------------------------------
 -- Permissões
 -- ---------------------------------------------------------------------------
@@ -1200,7 +1333,8 @@ grant execute on function entrar(text) to scara_anon;
 grant select on v_ordenha, v_animal, v_uso_sessao, v_alerta_queda, v_racao,
                 v_conciliacao, v_cartao_posto, v_pendencia,
                 v_ambiente_dia, v_producao_dia, v_mudanca_alvo, v_efeito_mudanca_animal,
-                v_efeito_mudanca, v_mudanca_sobreposta to scara_operador;
+                v_efeito_mudanca, v_mudanca_sobreposta,
+                v_troca, v_tempo_sessao, v_efeito_tempo to scara_operador;
 grant select on animal, lactacao, ausencia, sessao, ordenha, parcial,
                 balde_ciclo, posto_status, selecao_posto, medida_racao, racao_programada,
                 racao_fornecida, ocorrencia, intervencao, coleta_tanque, evento_posto,
