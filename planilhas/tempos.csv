@@ -1,1 +1,1 @@
-data,sessao,sistema,duracao_sessao_min,vacas,tempo_medio_vaca_min,tempo_esvaziamento_min,tempo_celular_min,observacao
+data,turno,sistema,rodada,vacas_na_rodada,saida_entrada_min,tinas_min,preparo_min,maquina_min,observacao

@@ -376,5 +376,69 @@ do $$ begin
   assert not exists (select 1 from evento_posto where boot = 9 and erro is not null), 'pulo não devia gerar erro';
 end $$;
 
+-- 16. Tempo da sessão: a sessão do cenário 15 tem V01 (05:02 a 05:10), pulo e V03 (05:12 a 05:20).
+
+do $$
+declare r record;
+begin
+  select * into r from v_tempo_sessao where data = '2026-11-02' and turno = 'manha';
+  assert r.ordenhas = 2 and r.rodadas = 2 and r.postos_usados = 1, format('contagens erradas: %s', row_to_json(r));
+  assert r.duracao_min = 18.0, format('duração devia ser 18, veio %s', r.duracao_min);
+  assert r.maquina_min_vaca = 8.0, format('máquina por vaca devia ser 8, veio %s', r.maquina_min_vaca);
+  assert r.troca_min_media = 2.0, format('troca devia ser 2, veio %s', r.troca_min_media);
+  assert r.maquina_parede_min = 16.0 and r.fora_maquina_min = 2.0, 'máquina e fora da máquina errados';
+  assert r.ocupacao_pct = 100, 'ocupação devia ser 100%';
+  -- Esvaziamento no meio da vaca (cenário 2): a pausa da V02 é tempo de balde, não de troca.
+  assert (select sum(pausa_min) from v_troca t join v_ordenha o on o.id = t.ordenha_id where o.brinco = 'V02'
+           and o.data = '2026-10-05') = 5.0, 'pausa de esvaziamento da V02 devia ser 5 min';
+end $$;
+
+-- 17. Efeito de uma mudança sobre o tempo: porções de ração preparadas antes da ordenha.
+-- Três tardes antes com troca de 9,5 a 10,5 min; três depois com 5,5 a 6,5 min.
+
+insert into mudanca_manejo (id, fazenda_id, tipo, escopo, inicio, adaptacao_dias, janela_dias, titulo, descricao, hipotese)
+values ('00000000-0000-0000-0000-0000000000d2', '00000000-0000-0000-0000-000000000001', 'ordenha', 'fazenda',
+        '2026-09-13', 0, 3, 'Porções de ração preparadas', 'Baldes de ração prontos em fila antes da ordenha',
+        'Troca cai de 10 para 6 min por rodada');
+
+do $$
+declare
+  chave text := current_setting('teste.chave');
+  trocas double precision[] := array[10.0, 9.5, 10.5, 6.0, 6.5, 5.5];
+  dia   date;
+  seq_  int := 0;
+  h0    timestamp;
+begin
+  for i in 1..6 loop
+    dia := date '2026-09-10' + (i - 1);
+    h0 := dia + time '15:00';
+    perform ingerir(chave, 11, 0, jsonb_build_array(
+      jsonb_build_object('boot', 11, 'seq', seq_ + 1, 'tipo', 'balde_retirado', 'massa_g', 0, 'estavel', true, 'uptime_ms', 0,
+                         'epoch_ms', (extract(epoch from h0 at time zone 'America/Fortaleza') * 1000)::bigint),
+      jsonb_build_object('boot', 11, 'seq', seq_ + 2, 'tipo', 'balde_colocado', 'massa_g', 12000, 'estavel', true, 'uptime_ms', 0,
+                         'epoch_ms', (extract(epoch from (h0 + interval '1 min') at time zone 'America/Fortaleza') * 1000)::bigint),
+      jsonb_build_object('boot', 11, 'seq', seq_ + 3, 'tipo', 'inicio', 'massa_g', 12000, 'estavel', true, 'uptime_ms', 0,
+                         'epoch_ms', (extract(epoch from (h0 + interval '2 min') at time zone 'America/Fortaleza') * 1000)::bigint),
+      jsonb_build_object('boot', 11, 'seq', seq_ + 4, 'tipo', 'fim', 'massa_g', 16000, 'estavel', true, 'uptime_ms', 0,
+                         'epoch_ms', (extract(epoch from (h0 + interval '7 min') at time zone 'America/Fortaleza') * 1000)::bigint),
+      jsonb_build_object('boot', 11, 'seq', seq_ + 5, 'tipo', 'inicio', 'massa_g', 16000, 'estavel', true, 'uptime_ms', 0,
+                         'epoch_ms', (extract(epoch from (h0 + make_interval(secs => (7 + trocas[i]) * 60)) at time zone 'America/Fortaleza') * 1000)::bigint),
+      jsonb_build_object('boot', 11, 'seq', seq_ + 6, 'tipo', 'fim', 'massa_g', 20000, 'estavel', true, 'uptime_ms', 0,
+                         'epoch_ms', (extract(epoch from (h0 + make_interval(secs => (12 + trocas[i]) * 60)) at time zone 'America/Fortaleza') * 1000)::bigint)));
+    seq_ := seq_ + 6;
+  end loop;
+end $$;
+
+do $$
+declare r record;
+begin
+  select * into r from v_efeito_tempo where id = '00000000-0000-0000-0000-0000000000d2';
+  assert r.sessoes_antes = 3 and r.sessoes_depois = 3, format('sessões erradas: %s e %s', r.sessoes_antes, r.sessoes_depois);
+  assert r.troca_antes_min = 10.0 and r.troca_depois_min = 6.0, format('trocas erradas: %s e %s', r.troca_antes_min, r.troca_depois_min);
+  assert r.diferenca_min = -4.0, format('diferença devia ser -4, veio %s', r.diferenca_min);
+  assert r.ic95_sup_min < 0, 'o intervalo devia ficar todo abaixo de zero';
+  assert r.veredicto = 'reduziu', format('veredicto inesperado: %s', r.veredicto);
+end $$;
+
 \echo 'teste.sql: todos os cenários passaram'
 rollback;

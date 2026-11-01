@@ -211,9 +211,17 @@ A memória do posto guarda pelo menos 4.000 eventos. Com 12 vacas e duas ordenha
 
 ## Tempos a medir
 
-Na semana 1, cronometrar sem o sistema e, depois da semana 6, com o sistema:
+O tempo do produtor é métrica de primeira classe, ao lado do leite (D16).
 
-- duração da sessão do início ao fim;
-- tempo por vaca, da entrada à saída;
-- tempo gasto em esvaziamento de balde;
-- tempo gasto no celular.
+Antes do posto, cronometrar por trecho em `planilhas/tempos.csv`: saída e entrada, tinas, preparo e máquina.
+
+Com o posto, o tempo sai dos toques do botão, nas visões `v_troca` e `v_tempo_sessao`:
+
+- duração da ordenha e número de rodadas;
+- rodadas incompletas, quando postos ficam vazios por causa do posto fixo;
+- minutos de máquina por vaca;
+- troca entre vacas no mesmo posto, que inclui abastecer as tinas;
+- pausas de esvaziamento de balde;
+- tempo em que nenhum posto ordenhava.
+
+Primeira observação de campo: 60 min para 9 vacas em 4 rodadas, com cerca de 5 min de máquina por vaca. Ver `docs/11-dados-de-campo.md`.

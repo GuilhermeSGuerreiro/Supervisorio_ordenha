@@ -148,3 +148,14 @@ O servidor guarda só o hash SHA-256 da chave do posto.
 - A associação automática fica marcada e é corrigível depois.
 
 **Consequência.** O operador só aperta o botão. A conferência semanal mostra a taxa de acerto da ordem, e essa taxa é critério de avanço da etapa 1. Em fazendas sem ordem fixa, o painel volta a ser necessário, ou a identificação eletrônica entra no módulo 2.
+
+## D16 · Tempo do produtor como métrica de primeira classe
+
+**Contexto.** Na primeira visita, uma ordenha de 60 minutos teve cerca de 20 minutos de máquina. O resto foi troca entre rodadas, abastecimento das tinas e rodadas incompletas. Para quem ordenha sozinho, tempo pesa tanto quanto leite.
+
+**Decisão.**
+- O tempo sai dos mesmos toques do botão, sem sensor novo.
+- Visões `v_troca`, `v_tempo_sessao` e `v_efeito_tempo`, com troca por rodada como métrica principal de mudanças de rotina.
+- O dosador de ração sobe de prioridade: vale também pelo tempo, não só pela precisão. Antes dele, testar porções preparadas, que custam quase nada e dimensionam o ganho.
+
+**Consequência.** O produto passa a responder também "quanto tempo a ordenha leva e onde ele se perde". Esse é o argumento mais fácil de entender para o produtor individual.
